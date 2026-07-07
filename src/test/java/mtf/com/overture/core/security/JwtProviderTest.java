@@ -1,0 +1,50 @@
+package mtf.com.overture.core.security;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class JwtProviderTest {
+
+    private static final String SECRET = "test-secret-key-must-be-at-least-32-bytes-long!!";
+
+    private JwtProvider jwtProvider;
+
+    @BeforeEach
+    void setUp() {
+        jwtProvider = new JwtProvider(SECRET, 900, 604800);
+    }
+
+    @Test
+    void createAccessToken_contains_userId_and_role() {
+        String token = jwtProvider.createAccessToken(42L, "USER");
+
+        assertThat(jwtProvider.validateToken(token)).isTrue();
+        assertThat(jwtProvider.getUserId(token)).isEqualTo(42L);
+        assertThat(jwtProvider.getRole(token)).isEqualTo("USER");
+    }
+
+    @Test
+    void createRefreshToken_contains_userId() {
+        String token = jwtProvider.createRefreshToken(7L);
+
+        assertThat(jwtProvider.validateToken(token)).isTrue();
+        assertThat(jwtProvider.getUserId(token)).isEqualTo(7L);
+    }
+
+    @Test
+    void validateToken_returns_false_for_expired_token() {
+        JwtProvider shortLived = new JwtProvider(SECRET, -1, -1);
+        String expiredToken = shortLived.createAccessToken(1L, "USER");
+
+        assertThat(jwtProvider.validateToken(expiredToken)).isFalse();
+    }
+
+    @Test
+    void validateToken_returns_false_for_tampered_token() {
+        String token = jwtProvider.createAccessToken(1L, "USER");
+
+        assertThat(jwtProvider.validateToken(token + "tampered")).isFalse();
+    }
+}
