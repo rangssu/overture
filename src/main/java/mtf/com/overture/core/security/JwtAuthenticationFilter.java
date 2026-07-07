@@ -30,7 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                      @NonNull FilterChain filterChain) throws ServletException, IOException {
         String token = resolveToken(request);
 
-        if (token != null && jwtProvider.validateToken(token)) {
+        if (token != null && jwtProvider.validateToken(token) && jwtProvider.isAccessToken(token)) {
             Long userId = jwtProvider.getUserId(token);
             String role = jwtProvider.getRole(token);
             var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));

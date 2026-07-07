@@ -1,5 +1,8 @@
-package mtf.com.overture.core.security;
+package mtf.com.overture.config;
 
+import mtf.com.overture.core.security.JwtAuthenticationEntryPoint;
+import mtf.com.overture.core.security.JwtAuthenticationFilter;
+import mtf.com.overture.core.security.JwtProvider;
 import mtf.com.overture.user.CustomOAuth2UserService;
 import mtf.com.overture.user.OAuth2FailureHandler;
 import mtf.com.overture.user.OAuth2SuccessHandler;

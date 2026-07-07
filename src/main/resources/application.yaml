@@ -23,6 +23,8 @@ spring:
             user-name-attribute: id
 
 jwt:
+  # 로컬 개발용 기본값. 실 배포 시 `--spring.profiles.active=prod` + JWT_SECRET 환경변수 필수
+  # (application-prod.yaml은 기본값 없이 JWT_SECRET을 요구해 미설정 시 기동 실패)
   secret: ${JWT_SECRET:overture-local-dev-secret-key-32-bytes-minimum!!}
   access-expiration-seconds: 900
   refresh-expiration-seconds: 604800

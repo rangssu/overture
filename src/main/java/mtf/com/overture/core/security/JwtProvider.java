@@ -14,6 +14,10 @@ import java.util.Date;
 @Component
 public class JwtProvider {
 
+    private static final String TYPE_CLAIM = "type";
+    private static final String TYPE_ACCESS = "access";
+    private static final String TYPE_REFRESH = "refresh";
+
     private final SecretKey key;
     private final long accessExpirationSeconds;
     private final long refreshExpirationSeconds;
@@ -29,21 +33,22 @@ public class JwtProvider {
     }
 
     public String createAccessToken(Long userId, String role) {
-        return buildToken(userId, role, accessExpirationSeconds);
+        return buildToken(userId, role, TYPE_ACCESS, accessExpirationSeconds);
     }
 
     public String createRefreshToken(Long userId) {
-        return buildToken(userId, null, refreshExpirationSeconds);
+        return buildToken(userId, null, TYPE_REFRESH, refreshExpirationSeconds);
     }
 
-    private String buildToken(Long userId, String role, long expirationSeconds) {
+    private String buildToken(Long userId, String role, String type, long expirationSeconds) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationSeconds * 1000);
 
         var builder = Jwts.builder()
                 .subject(String.valueOf(userId))
                 .issuedAt(now)
-                .expiration(expiry);
+                .expiration(expiry)
+                .claim(TYPE_CLAIM, type);
 
         if (role != null) {
             builder.claim("role", role);
@@ -67,6 +72,14 @@ public class JwtProvider {
 
     public String getRole(String token) {
         return parseClaims(token).get("role", String.class);
+    }
+
+    public boolean isAccessToken(String token) {
+        return TYPE_ACCESS.equals(parseClaims(token).get(TYPE_CLAIM, String.class));
+    }
+
+    public boolean isRefreshToken(String token) {
+        return TYPE_REFRESH.equals(parseClaims(token).get(TYPE_CLAIM, String.class));
     }
 
     public long getRemainingSeconds(String token) {

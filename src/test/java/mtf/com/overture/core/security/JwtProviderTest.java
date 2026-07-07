@@ -47,4 +47,20 @@ class JwtProviderTest {
 
         assertThat(jwtProvider.validateToken(token + "tampered")).isFalse();
     }
+
+    @Test
+    void createAccessToken_is_not_a_refresh_token() {
+        String token = jwtProvider.createAccessToken(1L, "USER");
+
+        assertThat(jwtProvider.isAccessToken(token)).isTrue();
+        assertThat(jwtProvider.isRefreshToken(token)).isFalse();
+    }
+
+    @Test
+    void createRefreshToken_is_not_an_access_token() {
+        String token = jwtProvider.createRefreshToken(1L);
+
+        assertThat(jwtProvider.isRefreshToken(token)).isTrue();
+        assertThat(jwtProvider.isAccessToken(token)).isFalse();
+    }
 }

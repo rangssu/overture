@@ -99,4 +99,16 @@ class AuthControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("AUTH_001"));
     }
+
+    @Test
+    void refresh_returns_401_when_given_an_access_token_instead_of_a_refresh_token() throws Exception {
+        String accessToken = jwtProvider.createAccessToken(USER_ID, "USER");
+        RefreshRequest request = new RefreshRequest(accessToken);
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_002"));
+    }
 }
