@@ -103,6 +103,9 @@ class AuthControllerTest {
     @Test
     void refresh_returns_401_when_given_an_access_token_instead_of_a_refresh_token() throws Exception {
         String accessToken = jwtProvider.createAccessToken(USER_ID, "USER");
+        // Redis에 저장된 값을 access token 자체로 덮어써서 storedToken 불일치가 아니라
+        // isRefreshToken() 검사 때문에 거부되는지를 격리해서 검증한다.
+        redisTemplate.opsForValue().set("refresh:" + USER_ID, accessToken, Duration.ofDays(7));
         RefreshRequest request = new RefreshRequest(accessToken);
 
         mockMvc.perform(post("/api/v1/auth/refresh")
