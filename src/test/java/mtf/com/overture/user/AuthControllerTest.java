@@ -46,6 +46,9 @@ class AuthControllerTest {
     @AfterEach
     void tearDown() {
         redisTemplate.delete("refresh:" + USER_ID);
+        if (refreshToken != null) {
+            redisTemplate.delete("blacklist:" + refreshToken);
+        }
     }
 
     @Test
@@ -72,5 +75,28 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("AUTH_002"));
+    }
+
+    @Test
+    void logout_blacklists_refresh_token_and_returns_204() throws Exception {
+        String accessToken = jwtProvider.createAccessToken(USER_ID, "USER");
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        // 로그아웃 후 같은 refreshToken으로 refresh 시도하면 거부되어야 한다
+        RefreshRequest request = new RefreshRequest(refreshToken);
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void logout_without_token_returns_401_with_auth_001() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/logout"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_001"));
     }
 }
