@@ -20,8 +20,7 @@ public class AuthController {
 
     @PostMapping("/api/v1/auth/refresh")
     public RefreshResponse refresh(@Valid @RequestBody RefreshRequest request) {
-        String accessToken = authService.refresh(request.refreshToken());
-        return new RefreshResponse(accessToken);
+        return authService.refresh(request.refreshToken());
     }
 
     @PostMapping("/api/v1/auth/logout")

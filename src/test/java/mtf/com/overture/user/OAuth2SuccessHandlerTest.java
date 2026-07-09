@@ -3,7 +3,6 @@ package mtf.com.overture.user;
 import mtf.com.overture.core.security.JwtProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -11,23 +10,22 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class OAuth2SuccessHandlerTest {
 
     private static final String SECRET = "test-secret-key-must-be-at-least-32-bytes-long!!";
     private final JwtProvider jwtProvider = new JwtProvider(SECRET, 900, 604800);
-    private StringRedisTemplate redisTemplate;
+    private RefreshTokenStore refreshTokenStore;
     private OAuth2SuccessHandler handler;
 
     @BeforeEach
     void setUp() {
-        redisTemplate = mock(StringRedisTemplate.class);
-        var valueOps = mock(org.springframework.data.redis.core.ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        handler = new OAuth2SuccessHandler(jwtProvider, redisTemplate, "http://localhost:5173/oauth/callback");
+        refreshTokenStore = mock(RefreshTokenStore.class);
+        handler = new OAuth2SuccessHandler(jwtProvider, refreshTokenStore, "http://localhost:5173/oauth/callback");
     }
 
     @Test
@@ -44,10 +42,6 @@ class OAuth2SuccessHandlerTest {
         assertThat(location).startsWith("http://localhost:5173/oauth/callback");
         assertThat(location).contains("accessToken=");
         assertThat(location).contains("refreshToken=");
-        verify(redisTemplate.opsForValue()).set(eqRefreshKey(55L), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(java.time.Duration.class));
-    }
-
-    private String eqRefreshKey(Long userId) {
-        return org.mockito.ArgumentMatchers.eq("refresh:" + userId);
+        verify(refreshTokenStore).store(eq(55L), anyString());
     }
 }

@@ -63,4 +63,14 @@ class JwtProviderTest {
         assertThat(jwtProvider.isRefreshToken(token)).isTrue();
         assertThat(jwtProvider.isAccessToken(token)).isFalse();
     }
+
+    @Test
+    void createRefreshToken_returns_distinct_tokens_for_same_user_even_within_the_same_second() {
+        // iat/exp가 초 단위(NumericDate)라 jti 같은 고유 클레임이 없으면
+        // 같은 유저에게 같은 초에 재발급된 토큰이 완전히 동일해질 수 있다 (rotation 무력화 위험).
+        String first = jwtProvider.createRefreshToken(1L);
+        String second = jwtProvider.createRefreshToken(1L);
+
+        assertThat(first).isNotEqualTo(second);
+    }
 }

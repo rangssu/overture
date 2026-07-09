@@ -6,10 +6,10 @@ import mtf.com.overture.core.security.JwtProvider;
 import mtf.com.overture.user.CustomOAuth2UserService;
 import mtf.com.overture.user.OAuth2FailureHandler;
 import mtf.com.overture.user.OAuth2SuccessHandler;
+import mtf.com.overture.user.RefreshTokenStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -24,19 +24,19 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final JwtProvider jwtProvider;
-    private final StringRedisTemplate redisTemplate;
+    private final RefreshTokenStore refreshTokenStore;
     private final String oauth2RedirectUri;
 
     public SecurityConfig(JwtProvider jwtProvider,
                            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                            CustomOAuth2UserService customOAuth2UserService,
-                           StringRedisTemplate redisTemplate,
+                           RefreshTokenStore refreshTokenStore,
                            @Value("${app.oauth2.redirect-uri}") String oauth2RedirectUri) {
         this.jwtProvider = jwtProvider;
         this.jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtProvider);
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.customOAuth2UserService = customOAuth2UserService;
-        this.redisTemplate = redisTemplate;
+        this.refreshTokenStore = refreshTokenStore;
         this.oauth2RedirectUri = oauth2RedirectUri;
     }
 
@@ -53,7 +53,7 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                        .successHandler(new OAuth2SuccessHandler(jwtProvider, redisTemplate, oauth2RedirectUri))
+                        .successHandler(new OAuth2SuccessHandler(jwtProvider, refreshTokenStore, oauth2RedirectUri))
                         .failureHandler(new OAuth2FailureHandler(oauth2RedirectUri))
                 );
 

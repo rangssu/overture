@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class JwtProvider {
@@ -17,6 +18,7 @@ public class JwtProvider {
     private static final String TYPE_CLAIM = "type";
     private static final String TYPE_ACCESS = "access";
     private static final String TYPE_REFRESH = "refresh";
+    private static final String ROLE_CLAIM = "role";
 
     private final SecretKey key;
     private final long accessExpirationSeconds;
@@ -45,13 +47,14 @@ public class JwtProvider {
         Date expiry = new Date(now.getTime() + expirationSeconds * 1000);
 
         var builder = Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(String.valueOf(userId))
                 .issuedAt(now)
                 .expiration(expiry)
                 .claim(TYPE_CLAIM, type);
 
         if (role != null) {
-            builder.claim("role", role);
+            builder.claim(ROLE_CLAIM, role);
         }
 
         return builder.signWith(key).compact();
@@ -71,7 +74,7 @@ public class JwtProvider {
     }
 
     public String getRole(String token) {
-        return parseClaims(token).get("role", String.class);
+        return parseClaims(token).get(ROLE_CLAIM, String.class);
     }
 
     public boolean isAccessToken(String token) {
