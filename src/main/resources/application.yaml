@@ -1,6 +1,12 @@
 spring:
   application:
     name: overture
+  jpa:
+    hibernate:
+      # Flyway/Liquibase 등 마이그레이션 도구 도입 전까지 임시로 명시.
+      # 미설정 시 Spring Boot 기본값이 임베디드 DB(H2)는 create-drop, 외부 DB(MySQL)는 none이라
+      # 환경별로 다르게 동작해 엔티티 변경(예: nullable)이 실제 MySQL 스키마엔 반영 안 될 수 있음.
+      ddl-auto: update
   security:
     oauth2:
       client:
