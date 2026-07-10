@@ -108,4 +108,35 @@ class AuthServiceTest {
                 .isInstanceOf(AuthException.class);
         assertThat(redisTemplate.opsForValue().get("refresh:" + userId)).isNull();
     }
+
+    @Test
+    void refresh_does_not_rotate_the_token_when_the_user_no_longer_exists() {
+        // role 조회를 Redis 회전보다 먼저 해야 한다 - 회전 뒤에 role 조회가 실패하면
+        // 클라이언트는 방금 폐기된 옛 토큰만 들고 있고 새로 발급된 토큰은 못 받아 영구 락아웃된다.
+        // 공유 tearDown()의 이중 삭제를 피하기 위해 별도 유저로 진행한다.
+        User ghostUser = userRepository.save(User.builder()
+                .email("ghost-" + System.nanoTime() + "@kakao.com")
+                .nickname("삭제될유저")
+                .oauthProvider(OauthProvider.KAKAO)
+                .oauthProviderId("ghost-" + System.nanoTime())
+                .role(Role.USER)
+                .status(UserStatus.ACTIVE)
+                .createdAt(LocalDateTime.now())
+                .build());
+        Long ghostUserId = ghostUser.getId();
+        String ghostRefreshToken = jwtProvider.createRefreshToken(ghostUserId);
+        redisTemplate.opsForValue().set("refresh:" + ghostUserId, ghostRefreshToken, Duration.ofDays(7));
+
+        try {
+            userRepository.deleteById(ghostUserId);
+
+            assertThatThrownBy(() -> authService.refresh(ghostRefreshToken))
+                    .isInstanceOf(AuthException.class);
+
+            // 회전이 일어나지 않았으므로 원본 토큰이 여전히 Redis에 그대로 남아있어야 한다.
+            assertThat(redisTemplate.opsForValue().get("refresh:" + ghostUserId)).isEqualTo(ghostRefreshToken);
+        } finally {
+            redisTemplate.delete("refresh:" + ghostUserId);
+        }
+    }
 }

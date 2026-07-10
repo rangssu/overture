@@ -3,6 +3,7 @@ package mtf.com.overture.config;
 import mtf.com.overture.core.security.JwtAuthenticationEntryPoint;
 import mtf.com.overture.core.security.JwtAuthenticationFilter;
 import mtf.com.overture.core.security.JwtProvider;
+import mtf.com.overture.core.security.TokenBlacklist;
 import mtf.com.overture.user.CustomOAuth2UserService;
 import mtf.com.overture.user.OAuth2FailureHandler;
 import mtf.com.overture.user.OAuth2SuccessHandler;
@@ -28,12 +29,13 @@ public class SecurityConfig {
     private final String oauth2RedirectUri;
 
     public SecurityConfig(JwtProvider jwtProvider,
+                           TokenBlacklist tokenBlacklist,
                            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                            CustomOAuth2UserService customOAuth2UserService,
                            RefreshTokenStore refreshTokenStore,
                            @Value("${app.oauth2.redirect-uri}") String oauth2RedirectUri) {
         this.jwtProvider = jwtProvider;
-        this.jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtProvider);
+        this.jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtProvider, tokenBlacklist);
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.customOAuth2UserService = customOAuth2UserService;
         this.refreshTokenStore = refreshTokenStore;

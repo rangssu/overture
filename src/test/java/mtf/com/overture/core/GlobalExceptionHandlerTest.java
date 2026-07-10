@@ -2,9 +2,15 @@ package mtf.com.overture.core;
 
 import mtf.com.overture.core.security.AuthErrorCode;
 import mtf.com.overture.core.security.AuthException;
+import mtf.com.overture.user.AuthController;
+import mtf.com.overture.user.dto.RefreshRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,5 +28,22 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().success()).isFalse();
         assertThat(response.getBody().error().code()).isEqualTo("AUTH_002");
+    }
+
+    @Test
+    void handleValidationException_returns_400_with_field_error_message() throws NoSuchMethodException {
+        var bindingResult = new BeanPropertyBindingResult(new RefreshRequest(""), "refreshRequest");
+        bindingResult.addError(new FieldError("refreshRequest", "refreshToken", "공백일 수 없습니다"));
+        var methodParameter = new MethodParameter(
+                AuthController.class.getMethod("refresh", RefreshRequest.class), 0);
+        MethodArgumentNotValidException exception = new MethodArgumentNotValidException(methodParameter, bindingResult);
+
+        ResponseEntity<ApiErrorResponse> response = handler.handleValidationException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isFalse();
+        assertThat(response.getBody().error().code()).isEqualTo("INVALID_REQUEST");
+        assertThat(response.getBody().error().message()).contains("refreshToken", "공백일 수 없습니다");
     }
 }

@@ -41,4 +41,38 @@ class UserRepositoryTest {
 
         assertThat(found).isEmpty();
     }
+
+    @Test
+    void findRoleById_returns_role_for_active_user() {
+        User user = userRepository.save(User.builder()
+                .email("active@kakao.com")
+                .nickname("활성유저")
+                .oauthProvider(OauthProvider.KAKAO)
+                .oauthProviderId("active-1")
+                .role(Role.USER)
+                .status(UserStatus.ACTIVE)
+                .createdAt(LocalDateTime.now())
+                .build());
+
+        Optional<Role> role = userRepository.findRoleById(user.getId());
+
+        assertThat(role).contains(Role.USER);
+    }
+
+    @Test
+    void findRoleById_returns_empty_for_withdrawn_user() {
+        User user = userRepository.save(User.builder()
+                .email("withdrawn@kakao.com")
+                .nickname("탈퇴유저")
+                .oauthProvider(OauthProvider.KAKAO)
+                .oauthProviderId("withdrawn-1")
+                .role(Role.USER)
+                .status(UserStatus.WITHDRAWN)
+                .createdAt(LocalDateTime.now())
+                .build());
+
+        Optional<Role> role = userRepository.findRoleById(user.getId());
+
+        assertThat(role).isEmpty();
+    }
 }

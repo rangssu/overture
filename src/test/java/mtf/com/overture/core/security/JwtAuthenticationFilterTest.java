@@ -11,12 +11,16 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class JwtAuthenticationFilterTest {
 
     private static final String SECRET = "test-secret-key-must-be-at-least-32-bytes-long!!";
     private final JwtProvider jwtProvider = new JwtProvider(SECRET, 900, 604800);
-    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtProvider);
+    // Mockito mock defaults isBlacklisted(...) to false, matching the not-logged-out case used by most tests here.
+    private final TokenBlacklist tokenBlacklist = mock(TokenBlacklist.class);
+    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtProvider, tokenBlacklist);
 
     @AfterEach
     void clearContext() {
@@ -67,6 +71,20 @@ class JwtAuthenticationFilterTest {
         String refreshToken = jwtProvider.createRefreshToken(42L);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("Authorization", "Bearer " + refreshToken);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = new MockFilterChain();
+
+        filter.doFilterInternal(request, response, chain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    void does_not_set_authentication_when_token_is_blacklisted() throws Exception {
+        String token = jwtProvider.createAccessToken(42L, "USER");
+        when(tokenBlacklist.isBlacklisted(token)).thenReturn(true);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer " + token);
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = new MockFilterChain();
 

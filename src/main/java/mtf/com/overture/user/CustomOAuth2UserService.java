@@ -1,5 +1,6 @@
 package mtf.com.overture.user;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -32,10 +33,29 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     User resolveUser(String registrationId, Map<String, Object> attributes) {
         OAuth2UserInfo userInfo = OAuth2UserInfoFactory.create(registrationId, attributes, objectMapper);
-        OauthProvider provider = OauthProvider.valueOf(registrationId.toUpperCase());
+        OauthProvider provider = toOauthProvider(registrationId);
 
         return userRepository.findByOauthProviderAndOauthProviderId(provider, userInfo.getProviderId())
-                .orElseGet(() -> createUser(provider, userInfo));
+                .orElseGet(() -> createOrGetUser(provider, userInfo));
+    }
+
+    private OauthProvider toOauthProvider(String registrationId) {
+        try {
+            return OauthProvider.valueOf(registrationId.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new OAuth2AuthenticationException(new OAuth2Error(
+                    "unsupported_provider", "지원하지 않는 OAuth2 provider입니다: " + registrationId, null));
+        }
+    }
+
+    private User createOrGetUser(OauthProvider provider, OAuth2UserInfo userInfo) {
+        try {
+            return createUser(provider, userInfo);
+        } catch (DataIntegrityViolationException e) {
+            // 동시 첫 로그인 레이스: 진 쪽은 unique 제약 위반 대신 이긴 쪽이 만든 row를 그대로 사용한다.
+            return userRepository.findByOauthProviderAndOauthProviderId(provider, userInfo.getProviderId())
+                    .orElseThrow(() -> e);
+        }
     }
 
     private User createUser(OauthProvider provider, OAuth2UserInfo userInfo) {

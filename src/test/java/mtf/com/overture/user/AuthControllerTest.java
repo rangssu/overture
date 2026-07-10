@@ -187,10 +187,41 @@ class AuthControllerTest {
     }
 
     @Test
+    void logout_blacklists_the_access_token_itself_so_it_can_no_longer_authenticate() throws Exception {
+        String accessToken = jwtProvider.createAccessToken(userId, "USER");
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        // 로그아웃에 사용한 바로 그 access token으로 다시 인증을 시도하면 거부되어야 한다
+        // (서명/만료만 보는 것이 아니라 블랙리스트까지 확인해야 통과한다)
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_001"));
+    }
+
+    @Test
     void logout_without_token_returns_401_with_auth_001() throws Exception {
         mockMvc.perform(post("/api/v1/auth/logout"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("AUTH_001"));
+    }
+
+    @Test
+    void refresh_with_blank_token_returns_400_validation_error_not_a_misleading_401() throws Exception {
+        // @Valid 실패(MethodArgumentNotValidException)를 GlobalExceptionHandler가 직접 처리하지 않으면
+        // sendError(400)이 서블릿 컨테이너의 /error forward를 유발하고, /error는 permitAll 대상이 아니라서
+        // JwtAuthenticationEntryPoint가 가로채 엉뚱한 401 AUTH_001("액세스 토큰 유효하지 않음")로 응답해버린다.
+        RefreshRequest request = new RefreshRequest("");
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
     }
 
     @Test

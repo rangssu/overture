@@ -19,9 +19,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String PREFIX = "Bearer ";
 
     private final JwtProvider jwtProvider;
+    private final TokenBlacklist tokenBlacklist;
 
-    public JwtAuthenticationFilter(JwtProvider jwtProvider) {
+    public JwtAuthenticationFilter(JwtProvider jwtProvider, TokenBlacklist tokenBlacklist) {
         this.jwtProvider = jwtProvider;
+        this.tokenBlacklist = tokenBlacklist;
     }
 
     @Override
@@ -30,12 +32,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                      @NonNull FilterChain filterChain) throws ServletException, IOException {
         String token = resolveToken(request);
 
-        if (token != null && jwtProvider.validateToken(token) && jwtProvider.isAccessToken(token)) {
-            Long userId = jwtProvider.getUserId(token);
-            String role = jwtProvider.getRole(token);
-            var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
-            var authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (token != null) {
+            jwtProvider.parseIfValid(token)
+                    .filter(jwtProvider::isAccessToken)
+                    .filter(claims -> !tokenBlacklist.isBlacklisted(token))
+                    .ifPresent(claims -> {
+                        Long userId = jwtProvider.getUserId(claims);
+                        String role = jwtProvider.getRole(claims);
+                        var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                        var authentication = new UsernamePasswordAuthenticationToken(userId, token, authorities);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    });
         }
 
         filterChain.doFilter(request, response);

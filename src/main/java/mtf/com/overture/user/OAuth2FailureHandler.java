@@ -25,6 +25,7 @@ public class OAuth2FailureHandler implements AuthenticationFailureHandler {
                                          AuthenticationException exception) throws IOException, ServletException {
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
                 .queryParam("error", errorCode(exception))
+                .encode()
                 .build().toUriString();
 
         response.sendRedirect(targetUrl);

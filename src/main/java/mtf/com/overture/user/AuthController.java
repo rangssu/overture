@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import mtf.com.overture.user.dto.RefreshRequest;
 import mtf.com.overture.user.dto.RefreshResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,8 +25,8 @@ public class AuthController {
     }
 
     @PostMapping("/api/v1/auth/logout")
-    public ResponseEntity<Void> logout(@AuthenticationPrincipal Long userId) {
-        authService.logout(userId);
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal Long userId, Authentication authentication) {
+        authService.logout(userId, (String) authentication.getCredentials());
         return ResponseEntity.noContent().build();
     }
 }

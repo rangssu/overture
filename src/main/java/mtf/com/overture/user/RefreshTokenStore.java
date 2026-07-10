@@ -1,5 +1,6 @@
 package mtf.com.overture.user;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -13,7 +14,6 @@ public class RefreshTokenStore {
 
     private static final String KEY_PREFIX = "refresh:";
     private static final String PREVIOUS_KEY_SUFFIX = ":prev";
-    private static final Duration TTL = Duration.ofDays(7);
     private static final Duration GRACE_PERIOD = Duration.ofSeconds(10);
 
     // KEYS[1]=현재 토큰 키, KEYS[2]=직전(회전 폐기) 토큰 키
@@ -39,13 +39,21 @@ public class RefreshTokenStore {
             """, String.class);
 
     private final StringRedisTemplate redisTemplate;
+    private final Duration ttl;
 
-    public RefreshTokenStore(StringRedisTemplate redisTemplate) {
+    public RefreshTokenStore(StringRedisTemplate redisTemplate,
+                              @Value("${jwt.refresh-expiration-seconds}") long refreshExpirationSeconds) {
         this.redisTemplate = redisTemplate;
+        // JwtProvider가 refresh JWT에 서명할 때 쓰는 만료시간과 같은 값을 공유해야, 둘 중 하나만
+        // 바뀌었을 때 "JWT는 유효한데 Redis는 이미 지웠다/그 반대" 같은 불일치가 생기지 않는다.
+        this.ttl = Duration.ofSeconds(refreshExpirationSeconds);
     }
 
     public void store(Long userId, String refreshToken) {
-        redisTemplate.opsForValue().set(key(userId), refreshToken, TTL);
+        // 새 로그인은 새 세션의 시작이므로, 이전 세션이 남긴 grace(prev) 상태를 함께 정리해야
+        // 이미 무효화됐어야 할 이전 토큰이 grace window를 통해 이 새 토큰을 받아가는 것을 막는다.
+        redisTemplate.delete(previousKey(userId));
+        redisTemplate.opsForValue().set(key(userId), refreshToken, ttl);
     }
 
     public String get(Long userId) {
@@ -61,7 +69,7 @@ public class RefreshTokenStore {
         String result = redisTemplate.execute(ROTATE_WITH_GRACE_SCRIPT,
                 List.of(key(userId), previousKey(userId)),
                 presentedToken, newTokenCandidate,
-                String.valueOf(TTL.toSeconds()), String.valueOf(GRACE_PERIOD.toSeconds()));
+                String.valueOf(ttl.toSeconds()), String.valueOf(GRACE_PERIOD.toSeconds()));
 
         if (result == null || result.charAt(0) == '0') {
             revoke(userId);

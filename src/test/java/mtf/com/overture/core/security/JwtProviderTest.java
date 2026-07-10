@@ -73,4 +73,22 @@ class JwtProviderTest {
 
         assertThat(first).isNotEqualTo(second);
     }
+
+    @Test
+    void parseIfValid_returns_claims_usable_by_the_claims_overloads() {
+        String token = jwtProvider.createAccessToken(42L, "USER");
+
+        var claims = jwtProvider.parseIfValid(token);
+
+        assertThat(claims).isPresent();
+        assertThat(jwtProvider.getUserId(claims.get())).isEqualTo(42L);
+        assertThat(jwtProvider.getRole(claims.get())).isEqualTo("USER");
+        assertThat(jwtProvider.isAccessToken(claims.get())).isTrue();
+        assertThat(jwtProvider.isRefreshToken(claims.get())).isFalse();
+    }
+
+    @Test
+    void parseIfValid_returns_empty_for_invalid_token() {
+        assertThat(jwtProvider.parseIfValid("not-a-jwt")).isEmpty();
+    }
 }
