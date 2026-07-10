@@ -63,6 +63,17 @@ class CustomOAuth2UserServiceTest {
     }
 
     @Test
+    void resolveUser_creates_user_when_email_consent_declined() {
+        service = new CustomOAuth2UserService(userRepository, objectMapper);
+
+        User user = service.resolveUser("kakao", kakaoAttributes("666", null, "이메일없는유저"));
+
+        assertThat(user.getId()).isNotNull();
+        assertThat(user.getEmail()).isNull();
+        assertThat(user.getNickname()).isEqualTo("이메일없는유저");
+    }
+
+    @Test
     void resolveUser_rejects_login_when_nickname_consent_declined() {
         service = new CustomOAuth2UserService(userRepository, objectMapper);
 

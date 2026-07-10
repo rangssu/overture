@@ -39,10 +39,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private User createUser(OauthProvider provider, OAuth2UserInfo userInfo) {
-        if (userInfo.getEmail() == null || userInfo.getNickname() == null) {
+        if (userInfo.getNickname() == null) {
             throw new OAuth2AuthenticationException(new OAuth2Error(
                     "kakao_required_profile_missing",
-                    "카카오 계정에서 이메일/닉네임 필수 동의 항목을 확인할 수 없습니다.",
+                    "카카오 계정에서 닉네임 필수 동의 항목을 확인할 수 없습니다.",
                     null));
         }
 
