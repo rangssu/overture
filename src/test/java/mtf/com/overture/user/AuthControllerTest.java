@@ -66,7 +66,7 @@ class AuthControllerTest {
     private User saveUser(Role role) {
         return userRepository.save(User.builder()
                 .email("user-" + System.nanoTime() + "@kakao.com")
-                .nickname("테스트유저")
+                .nickname(null)
                 .oauthProvider(OauthProvider.KAKAO)
                 .oauthProviderId("provider-" + System.nanoTime())
                 .role(role)

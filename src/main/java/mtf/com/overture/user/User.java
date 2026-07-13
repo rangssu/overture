@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"oauth_provider", "oauth_provider_id"})
+        @UniqueConstraint(columnNames = {"oauth_provider", "oauth_provider_id"}),
+        @UniqueConstraint(columnNames = {"nickname"})
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -22,7 +23,6 @@ public class User {
 
     private String email;
 
-    @Column(nullable = false)
     private String nickname;
 
     private String profileImageUrl;
@@ -57,5 +57,13 @@ public class User {
         this.role = role;
         this.status = status;
         this.createdAt = createdAt;
+    }
+
+    public void updateNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void updateProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
     }
 }
