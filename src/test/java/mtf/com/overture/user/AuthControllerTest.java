@@ -2,6 +2,7 @@ package mtf.com.overture.user;
 
 import tools.jackson.databind.ObjectMapper;
 import mtf.com.overture.core.security.JwtProvider;
+import mtf.com.overture.user.dto.ExchangeRequest;
 import mtf.com.overture.user.dto.RefreshRequest;
 import mtf.com.overture.user.dto.RefreshResponse;
 import org.junit.jupiter.api.AfterEach;
@@ -39,6 +40,9 @@ class AuthControllerTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private OAuthExchangeCodeStore exchangeCodeStore;
 
     private Long userId;
     private String refreshToken;
@@ -237,5 +241,41 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("AUTH_002"));
+    }
+
+    @Test
+    void exchange_returns_tokens_for_a_valid_code_without_requiring_authentication() throws Exception {
+        String code = exchangeCodeStore.issue("exchanged-access-token", "exchanged-refresh-token");
+
+        mockMvc.perform(post("/api/v1/auth/exchange")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new ExchangeRequest(code))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("exchanged-access-token"))
+                .andExpect(jsonPath("$.refreshToken").value("exchanged-refresh-token"));
+    }
+
+    @Test
+    void exchange_rejects_an_unknown_code_with_401() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/exchange")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new ExchangeRequest("no-such-code"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_003"));
+    }
+
+    @Test
+    void exchange_rejects_a_code_that_was_already_redeemed() throws Exception {
+        String code = exchangeCodeStore.issue("access-token", "refresh-token");
+        mockMvc.perform(post("/api/v1/auth/exchange")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new ExchangeRequest(code))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/exchange")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new ExchangeRequest(code))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_003"));
     }
 }

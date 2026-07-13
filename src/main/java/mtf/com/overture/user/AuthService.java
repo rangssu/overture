@@ -15,13 +15,26 @@ public class AuthService {
     private final TokenBlacklist tokenBlacklist;
     private final UserRepository userRepository;
     private final RefreshTokenStore refreshTokenStore;
+    private final OAuthExchangeCodeStore exchangeCodeStore;
 
     public AuthService(JwtProvider jwtProvider, TokenBlacklist tokenBlacklist, UserRepository userRepository,
-                        RefreshTokenStore refreshTokenStore) {
+                        RefreshTokenStore refreshTokenStore, OAuthExchangeCodeStore exchangeCodeStore) {
         this.jwtProvider = jwtProvider;
         this.tokenBlacklist = tokenBlacklist;
         this.userRepository = userRepository;
         this.refreshTokenStore = refreshTokenStore;
+        this.exchangeCodeStore = exchangeCodeStore;
+    }
+
+    /**
+     * OAuth 로그인 성공 리다이렉트에 실린 1회용 코드를 실제 토큰으로 교환한다.
+     * 토큰 자체가 URL에 노출되지 않도록, OAuth2SuccessHandler는 코드만 리다이렉트에 싣고
+     * 클라이언트가 이 API로 즉시 토큰을 받아간다.
+     */
+    public RefreshResponse exchange(String code) {
+        return exchangeCodeStore.redeem(code)
+                .map(pair -> new RefreshResponse(pair.accessToken(), pair.refreshToken()))
+                .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_EXCHANGE_CODE));
     }
 
     public RefreshResponse refresh(String refreshToken) {

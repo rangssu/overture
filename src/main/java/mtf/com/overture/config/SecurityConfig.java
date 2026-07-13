@@ -7,6 +7,7 @@ import mtf.com.overture.core.security.TokenBlacklist;
 import mtf.com.overture.user.CustomOAuth2UserService;
 import mtf.com.overture.user.OAuth2FailureHandler;
 import mtf.com.overture.user.OAuth2SuccessHandler;
+import mtf.com.overture.user.OAuthExchangeCodeStore;
 import mtf.com.overture.user.RefreshTokenStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +27,7 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final JwtProvider jwtProvider;
     private final RefreshTokenStore refreshTokenStore;
+    private final OAuthExchangeCodeStore exchangeCodeStore;
     private final String oauth2RedirectUri;
 
     public SecurityConfig(JwtProvider jwtProvider,
@@ -33,12 +35,14 @@ public class SecurityConfig {
                            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                            CustomOAuth2UserService customOAuth2UserService,
                            RefreshTokenStore refreshTokenStore,
+                           OAuthExchangeCodeStore exchangeCodeStore,
                            @Value("${app.oauth2.redirect-uri}") String oauth2RedirectUri) {
         this.jwtProvider = jwtProvider;
         this.jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtProvider, tokenBlacklist);
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.customOAuth2UserService = customOAuth2UserService;
         this.refreshTokenStore = refreshTokenStore;
+        this.exchangeCodeStore = exchangeCodeStore;
         this.oauth2RedirectUri = oauth2RedirectUri;
     }
 
@@ -48,14 +52,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/refresh", "/oauth2/**", "/login/**").permitAll()
+                        .requestMatchers("/api/v1/auth/refresh", "/api/v1/auth/exchange", "/oauth2/**", "/login/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                        .successHandler(new OAuth2SuccessHandler(jwtProvider, refreshTokenStore, oauth2RedirectUri))
+                        .successHandler(new OAuth2SuccessHandler(jwtProvider, refreshTokenStore, exchangeCodeStore, oauth2RedirectUri))
                         .failureHandler(new OAuth2FailureHandler(oauth2RedirectUri))
                 );
 

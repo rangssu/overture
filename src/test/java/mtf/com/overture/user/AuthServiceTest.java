@@ -38,6 +38,9 @@ class AuthServiceTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private OAuthExchangeCodeStore exchangeCodeStore;
+
     private Long userId;
     private String refreshToken;
 
@@ -138,5 +141,24 @@ class AuthServiceTest {
         } finally {
             redisTemplate.delete("refresh:" + ghostUserId);
         }
+    }
+
+    @Test
+    void exchange_returns_the_token_pair_for_a_valid_code_and_consumes_it() {
+        String code = exchangeCodeStore.issue("issued-access-token", "issued-refresh-token");
+
+        RefreshResponse response = authService.exchange(code);
+
+        assertThat(response.accessToken()).isEqualTo("issued-access-token");
+        assertThat(response.refreshToken()).isEqualTo("issued-refresh-token");
+        // 1회용이므로 같은 코드로 다시 교환을 시도하면 거부되어야 한다.
+        assertThatThrownBy(() -> authService.exchange(code))
+                .isInstanceOf(AuthException.class);
+    }
+
+    @Test
+    void exchange_rejects_an_unknown_or_expired_code() {
+        assertThatThrownBy(() -> authService.exchange("no-such-code"))
+                .isInstanceOf(AuthException.class);
     }
 }

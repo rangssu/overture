@@ -14,11 +14,14 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtProvider jwtProvider;
     private final RefreshTokenStore refreshTokenStore;
+    private final OAuthExchangeCodeStore exchangeCodeStore;
     private final String redirectUri;
 
-    public OAuth2SuccessHandler(JwtProvider jwtProvider, RefreshTokenStore refreshTokenStore, String redirectUri) {
+    public OAuth2SuccessHandler(JwtProvider jwtProvider, RefreshTokenStore refreshTokenStore,
+                                 OAuthExchangeCodeStore exchangeCodeStore, String redirectUri) {
         this.jwtProvider = jwtProvider;
         this.refreshTokenStore = refreshTokenStore;
+        this.exchangeCodeStore = exchangeCodeStore;
         this.redirectUri = redirectUri;
     }
 
@@ -33,9 +36,13 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         refreshTokenStore.store(userId, refreshToken);
 
+        // 토큰을 리다이렉트 URL에 직접 싣지 않는다 - 브라우저 히스토리·서버 access 로그·Referer 헤더로
+        // 유출될 수 있기 때문. 대신 1회용 짧은 TTL 코드만 실어서, 클라이언트가 POST /api/v1/auth/exchange로
+        // 즉시 교환하게 한다.
+        String code = exchangeCodeStore.issue(accessToken, refreshToken);
+
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("accessToken", accessToken)
-                .queryParam("refreshToken", refreshToken)
+                .queryParam("code", code)
                 .build().toUriString();
 
         response.sendRedirect(targetUrl);

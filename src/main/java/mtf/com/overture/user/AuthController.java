@@ -1,6 +1,7 @@
 package mtf.com.overture.user;
 
 import jakarta.validation.Valid;
+import mtf.com.overture.user.dto.ExchangeRequest;
 import mtf.com.overture.user.dto.RefreshRequest;
 import mtf.com.overture.user.dto.RefreshResponse;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,11 @@ public class AuthController {
     @PostMapping("/api/v1/auth/refresh")
     public RefreshResponse refresh(@Valid @RequestBody RefreshRequest request) {
         return authService.refresh(request.refreshToken());
+    }
+
+    @PostMapping("/api/v1/auth/exchange")
+    public RefreshResponse exchange(@Valid @RequestBody ExchangeRequest request) {
+        return authService.exchange(request.code());
     }
 
     @PostMapping("/api/v1/auth/logout")
