@@ -66,17 +66,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private User createUser(OauthProvider provider, OAuth2UserInfo userInfo) {
-        if (userInfo.getNickname() == null) {
-            throw new OAuth2AuthenticationException(new OAuth2Error(
-                    "oauth_required_profile_missing",
-                    "OAuth 계정에서 닉네임 필수 동의 항목을 확인할 수 없습니다.",
-                    null));
-        }
-
         // provider별로 이메일 제공 여부가 다름 - 카카오는 비즈 앱 전환 전까지 항상 null (KOE205로 스코프 요청 자체가 거부됨)
+        // 닉네임은 카카오 동의 항목에서 가져오지 않는다 - 여러 사용자가 같은 카카오 닉네임을 가질 수 있어
+        // 앱 내에서 사용자가 PATCH /api/v1/users/me로 직접 고유한 닉네임을 설정하게 한다.
         User user = User.builder()
                 .email(userInfo.getEmail())
-                .nickname(userInfo.getNickname())
+                .nickname(null)
                 .profileImageUrl(userInfo.getProfileImageUrl())
                 .oauthProvider(provider)
                 .oauthProviderId(userInfo.getProviderId())

@@ -44,14 +44,15 @@ class CustomOAuth2UserServiceTest {
     }
 
     @Test
-    void resolveUser_creates_new_user_when_not_exists() {
+    void resolveUser_creates_new_user_with_no_app_nickname_yet() {
         service = new CustomOAuth2UserService(userRepository, objectMapper);
 
         User user = service.resolveUser("kakao", kakaoAttributes("111", "new@kakao.com", "새유저"));
 
         assertThat(user.getId()).isNotNull();
         assertThat(user.getEmail()).isEqualTo("new@kakao.com");
-        assertThat(user.getNickname()).isEqualTo("새유저");
+        // 카카오 닉네임은 여러 사용자가 겹칠 수 있어 앱 닉네임으로 쓰지 않는다 - 사용자가 PATCH /api/v1/users/me로 직접 설정한다.
+        assertThat(user.getNickname()).isNull();
         assertThat(user.getOauthProvider()).isEqualTo(OauthProvider.KAKAO);
         assertThat(user.getOauthProviderId()).isEqualTo("111");
         assertThat(user.getRole()).isEqualTo(Role.USER);
@@ -76,11 +77,13 @@ class CustomOAuth2UserServiceTest {
 
         assertThat(user.getId()).isNotNull();
         assertThat(user.getEmail()).isNull();
-        assertThat(user.getNickname()).isEqualTo("이메일없는유저");
+        assertThat(user.getNickname()).isNull();
     }
 
     @Test
-    void resolveUser_rejects_login_when_nickname_consent_declined() {
+    void resolveUser_creates_user_when_profile_consent_declined() {
+        // "profile" 동의 항목(닉네임/프로필이미지)을 거부해도 가입은 성공해야 한다 -
+        // 앱 닉네임은 애초에 카카오 동의 항목에서 가져오지 않기 때문이다.
         service = new CustomOAuth2UserService(userRepository, objectMapper);
 
         Map<String, Object> account = new HashMap<>();
@@ -91,22 +94,29 @@ class CustomOAuth2UserServiceTest {
         attributes.put("id", 333L);
         attributes.put("kakao_account", account);
 
-        assertThatThrownBy(() -> service.resolveUser("kakao", attributes))
-                .isInstanceOf(OAuth2AuthenticationException.class);
-        assertThat(userRepository.count()).isEqualTo(0);
+        User user = service.resolveUser("kakao", attributes);
+
+        assertThat(user.getId()).isNotNull();
+        assertThat(user.getEmail()).isEqualTo("new@kakao.com");
+        assertThat(user.getNickname()).isNull();
+        assertThat(user.getProfileImageUrl()).isNull();
     }
 
     @Test
-    void resolveUser_rejects_login_when_kakao_account_missing_entirely() {
+    void resolveUser_creates_user_when_kakao_account_missing_entirely() {
+        // kakao_account 자체가 없어도(이메일·프로필 동의를 전부 거부) 가입은 성공해야 한다 -
+        // 이메일도 닉네임도 더 이상 필수 정보가 아니다.
         service = new CustomOAuth2UserService(userRepository, objectMapper);
 
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("id", 444L);
         // "kakao_account" key intentionally absent - no account scope granted
 
-        assertThatThrownBy(() -> service.resolveUser("kakao", attributes))
-                .isInstanceOf(OAuth2AuthenticationException.class);
-        assertThat(userRepository.count()).isEqualTo(0);
+        User user = service.resolveUser("kakao", attributes);
+
+        assertThat(user.getId()).isNotNull();
+        assertThat(user.getEmail()).isNull();
+        assertThat(user.getNickname()).isNull();
     }
 
     @Test
