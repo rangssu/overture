@@ -24,11 +24,11 @@ public class UserService {
 
     @Transactional
     public UserResponse updateMe(Long userId, UserUpdateRequest request) {
+        User user = findActiveUser(userId);
+
         if (request.nickname() == null && request.profileImageUrl() == null) {
             throw new UserException(UserErrorCode.NO_FIELDS_TO_UPDATE);
         }
-
-        User user = findActiveUser(userId);
 
         if (request.nickname() != null) {
             if (userRepository.existsByNicknameAndIdNot(request.nickname(), userId)) {

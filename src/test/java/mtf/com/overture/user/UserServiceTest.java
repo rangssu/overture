@@ -119,4 +119,26 @@ class UserServiceTest {
                 .isInstanceOf(UserException.class)
                 .satisfies(e -> assertThat(((UserException) e).getErrorCode()).isEqualTo(UserErrorCode.NO_FIELDS_TO_UPDATE));
     }
+
+    @Test
+    void updateMe_rejects_a_withdrawn_user_with_401_even_when_the_body_is_empty() {
+        // 다른 모든 경로(getMe, 필드가 있는 updateMe)는 탈퇴 유저를 401로 거부한다 -
+        // 빈 body PATCH만 예외적으로 400(NO_FIELDS_TO_UPDATE)이 먼저 걸려 401을 우회하면 안 된다.
+        User withdrawn = userRepository.save(User.builder()
+                .email("withdrawn-empty-" + System.nanoTime() + "@kakao.com")
+                .nickname("탈퇴예정빈바디")
+                .oauthProvider(OauthProvider.KAKAO)
+                .oauthProviderId("withdrawn-empty-" + System.nanoTime())
+                .role(Role.USER)
+                .status(UserStatus.WITHDRAWN)
+                .createdAt(LocalDateTime.now())
+                .build());
+
+        try {
+            assertThatThrownBy(() -> userService.updateMe(withdrawn.getId(), new UserUpdateRequest(null, null)))
+                    .isInstanceOf(AuthException.class);
+        } finally {
+            userRepository.deleteById(withdrawn.getId());
+        }
+    }
 }
