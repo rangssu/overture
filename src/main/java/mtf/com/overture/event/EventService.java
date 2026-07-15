@@ -2,6 +2,7 @@ package mtf.com.overture.event;
 
 import mtf.com.overture.event.dto.EventCreateRequest;
 import mtf.com.overture.event.dto.EventResponse;
+import mtf.com.overture.event.dto.EventUpdateRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -41,6 +42,23 @@ public class EventService {
                 .build();
 
         return EventResponse.from(eventRepository.save(event));
+    }
+
+    @Transactional
+    public EventResponse updateEvent(Authentication authentication, Long userId, Long eventId, EventUpdateRequest request) {
+        Event event = findEvent(eventId);
+        requireOwnerOrAdmin(authentication, event, userId);
+
+        LocalDateTime newSaleStartAt = request.saleStartAt() != null ? request.saleStartAt() : event.getSaleStartAt();
+        LocalDateTime newSaleEndAt = request.saleEndAt() != null ? request.saleEndAt() : event.getSaleEndAt();
+        validateSalePeriod(newSaleStartAt, newSaleEndAt);
+
+        event.update(request.title(), request.venue(), request.description(), request.posterUrl(),
+                request.saleStartAt(), request.saleEndAt());
+
+        eventCache.evictEvent(eventId);
+
+        return EventResponse.from(event);
     }
 
     @Transactional(readOnly = true)

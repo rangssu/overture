@@ -2,6 +2,7 @@ package mtf.com.overture.event;
 
 import mtf.com.overture.event.dto.EventCreateRequest;
 import mtf.com.overture.event.dto.EventResponse;
+import mtf.com.overture.event.dto.EventUpdateRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -155,5 +156,43 @@ class EventServiceTest {
         var pageAfterPublish = eventService.listEvents(PageRequest.of(0, 20));
 
         assertThat(pageAfterPublish.getContent()).anyMatch(e -> e.id().equals(draft.id()));
+    }
+
+    @Test
+    void updateEvent_changes_only_the_provided_fields() {
+        EventResponse created = eventService.createEvent(organizerAuth(), 1L, validRequest());
+        createdEventId = created.id();
+        EventUpdateRequest update = new EventUpdateRequest("새 제목", null, null, null, null, null);
+
+        EventResponse response = eventService.updateEvent(organizerAuth(), 1L, created.id(), update);
+
+        assertThat(response.title()).isEqualTo("새 제목");
+        assertThat(response.venue()).isEqualTo("올림픽공원");
+    }
+
+    @Test
+    void updateEvent_rejects_a_caller_who_is_not_the_owner_or_admin() {
+        EventResponse created = eventService.createEvent(organizerAuth(), 1L, validRequest());
+        createdEventId = created.id();
+        EventUpdateRequest update = new EventUpdateRequest("새 제목", null, null, null, null, null);
+        Authentication otherOrganizer = new org.springframework.security.authentication.TestingAuthenticationToken(
+                3L, null, List.of(new SimpleGrantedAuthority("ROLE_ORGANIZER")));
+
+        assertThatThrownBy(() -> eventService.updateEvent(otherOrganizer, 3L, created.id(), update))
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.FORBIDDEN));
+    }
+
+    @Test
+    void updateEvent_evicts_the_cached_entry() {
+        EventResponse created = eventService.createEvent(organizerAuth(), 1L, validRequest());
+        createdEventId = created.id();
+        eventService.getEvent(created.id(), 1L);
+        EventUpdateRequest update = new EventUpdateRequest("새 제목", null, null, null, null, null);
+
+        eventService.updateEvent(organizerAuth(), 1L, created.id(), update);
+        EventResponse refetched = eventService.getEvent(created.id(), 1L);
+
+        assertThat(refetched.title()).isEqualTo("새 제목");
     }
 }
