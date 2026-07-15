@@ -13,6 +13,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -69,7 +71,12 @@ public class EventService {
         event.update(request.title(), request.venue(), request.description(), request.posterUrl(),
                 request.saleStartAt(), request.saleEndAt());
 
-        eventCache.evictEvent(eventId);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                eventCache.evictEvent(eventId);
+            }
+        });
 
         return EventResponse.from(event);
     }
@@ -125,8 +132,13 @@ public class EventService {
             event.publish();
         }
 
-        eventCache.evictEvent(eventId);
-        eventCache.evictGrades(eventId);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                eventCache.evictEvent(eventId);
+                eventCache.evictGrades(eventId);
+            }
+        });
 
         return SeatGradeResponse.from(grade);
     }
@@ -159,8 +171,13 @@ public class EventService {
 
         grade.update(request.name(), request.price());
 
-        eventCache.evictEvent(eventId);
-        eventCache.evictGrades(eventId);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                eventCache.evictEvent(eventId);
+                eventCache.evictGrades(eventId);
+            }
+        });
 
         return SeatGradeResponse.from(grade);
     }

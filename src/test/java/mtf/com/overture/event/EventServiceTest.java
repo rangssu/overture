@@ -54,6 +54,10 @@ class EventServiceTest {
         return new TestingAuthenticationToken(2L, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
     }
 
+    private Authentication adminAuth() {
+        return new TestingAuthenticationToken(9L, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+    }
+
     private EventCreateRequest validRequest() {
         return new EventCreateRequest("콘서트", "올림픽공원", "설명", "http://example.com/p.png",
                 LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(8));
@@ -66,6 +70,15 @@ class EventServiceTest {
 
         assertThat(response.status()).isEqualTo("DRAFT");
         assertThat(response.createdBy()).isEqualTo(1L);
+    }
+
+    @Test
+    void createEvent_allows_an_admin_caller() {
+        EventResponse response = eventService.createEvent(adminAuth(), 9L, validRequest());
+        createdEventId = response.id();
+
+        assertThat(response.status()).isEqualTo("DRAFT");
+        assertThat(response.createdBy()).isEqualTo(9L);
     }
 
     @Test

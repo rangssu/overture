@@ -65,6 +65,10 @@ class EventServiceGradeTest {
         return new TestingAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_ORGANIZER")));
     }
 
+    private Authentication adminAuth() {
+        return new TestingAuthenticationToken(9L, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+    }
+
     private Long createDraftEvent() {
         EventCreateRequest request = new EventCreateRequest("콘서트", "올림픽공원", "설명", null,
                 LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(8));
@@ -108,6 +112,16 @@ class EventServiceGradeTest {
                 new SeatGradeCreateRequest("VIP", 150000, 5)))
                 .isInstanceOf(EventException.class)
                 .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.FORBIDDEN));
+    }
+
+    @Test
+    void addGrade_allows_an_admin_who_is_not_the_owner() {
+        Long eventId = createDraftEvent();
+
+        SeatGradeResponse response = eventService.addGrade(adminAuth(), 9L, eventId,
+                new SeatGradeCreateRequest("VIP", 150000, 5));
+
+        assertThat(response.totalCount()).isEqualTo(5);
     }
 
     @Test
