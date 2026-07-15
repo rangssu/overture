@@ -24,15 +24,16 @@ class JwtAuthenticationEntryPointTest {
     @LocalServerPort
     private int port;
 
-    private final HttpClient httpClient = HttpClient.newHttpClient();
-
     @Test
     void an_unauthenticated_request_gets_a_401_with_the_korean_message_intact() throws Exception {
         HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/auth/logout"))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response;
+        try (HttpClient httpClient = HttpClient.newHttpClient()) {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        }
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.headers().firstValue("Content-Type")).get().asString().containsIgnoringCase("UTF-8");
