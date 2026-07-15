@@ -5,6 +5,8 @@ import mtf.com.overture.event.dto.EventResponse;
 import mtf.com.overture.event.dto.EventUpdateRequest;
 import mtf.com.overture.event.dto.SeatGradeCreateRequest;
 import mtf.com.overture.event.dto.SeatGradeResponse;
+import mtf.com.overture.event.dto.SeatGradeUpdateRequest;
+import mtf.com.overture.event.dto.SeatResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -15,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class EventService {
@@ -142,6 +146,41 @@ public class EventService {
                 .toList();
         eventCache.putGrades(eventId, grades);
         return grades;
+    }
+
+    @Transactional
+    public SeatGradeResponse updateGrade(Authentication authentication, Long userId, Long eventId, Long gradeId, SeatGradeUpdateRequest request) {
+        Event event = findEvent(eventId);
+        requireOwnerOrAdmin(authentication, event, userId);
+
+        SeatGrade grade = seatGradeRepository.findById(gradeId)
+                .filter(g -> g.getEventId().equals(eventId))
+                .orElseThrow(() -> new EventException(EventErrorCode.NOT_FOUND));
+
+        grade.update(request.name(), request.price());
+
+        eventCache.evictEvent(eventId);
+        eventCache.evictGrades(eventId);
+
+        return SeatGradeResponse.from(grade);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, List<SeatResponse>> getSeats(Long eventId, Long viewerId) {
+        Event event = findEvent(eventId);
+        assertVisible(event.getStatus().name(), event.getCreatedBy(), viewerId);
+
+        List<SeatGrade> grades = seatGradeRepository.findByEventId(eventId);
+        List<Long> gradeIds = grades.stream().map(SeatGrade::getId).toList();
+        List<Seat> seats = seatRepository.findByGradeIdIn(gradeIds);
+
+        Map<Long, String> gradeNameById = grades.stream()
+                .collect(Collectors.toMap(SeatGrade::getId, SeatGrade::getName));
+
+        return seats.stream()
+                .collect(Collectors.groupingBy(
+                        seat -> gradeNameById.get(seat.getGradeId()),
+                        Collectors.mapping(SeatResponse::from, Collectors.toList())));
     }
 
     Event findEvent(Long eventId) {

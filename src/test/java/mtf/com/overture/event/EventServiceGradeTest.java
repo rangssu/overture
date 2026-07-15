@@ -4,6 +4,8 @@ import mtf.com.overture.event.dto.EventCreateRequest;
 import mtf.com.overture.event.dto.EventResponse;
 import mtf.com.overture.event.dto.SeatGradeCreateRequest;
 import mtf.com.overture.event.dto.SeatGradeResponse;
+import mtf.com.overture.event.dto.SeatGradeUpdateRequest;
+import mtf.com.overture.event.dto.SeatResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -139,5 +142,76 @@ class EventServiceGradeTest {
         assertThat(grades).hasSize(2);
         Event event = eventRepository.findById(eventId).orElseThrow();
         assertThat(event.getStatus()).isEqualTo(EventStatus.PUBLISHED);
+    }
+
+    @Test
+    void updateGrade_changes_name_and_price_but_not_seat_count() {
+        Long eventId = createDraftEvent();
+        SeatGradeResponse grade = eventService.addGrade(organizerAuth(), 1L, eventId,
+                new SeatGradeCreateRequest("VIP", 150000, 5));
+
+        SeatGradeResponse updated = eventService.updateGrade(organizerAuth(), 1L, eventId, grade.id(),
+                new SeatGradeUpdateRequest("VVIP", 200000));
+
+        assertThat(updated.name()).isEqualTo("VVIP");
+        assertThat(updated.price()).isEqualTo(200000);
+        assertThat(updated.totalCount()).isEqualTo(5);
+        assertThat(seatRepository.findByGradeId(grade.id())).hasSize(5);
+    }
+
+    @Test
+    void updateGrade_rejects_a_caller_who_is_not_the_owner() {
+        Long eventId = createDraftEvent();
+        SeatGradeResponse grade = eventService.addGrade(organizerAuth(), 1L, eventId,
+                new SeatGradeCreateRequest("VIP", 150000, 5));
+        Authentication otherOrganizer = new TestingAuthenticationToken(
+                3L, null, List.of(new SimpleGrantedAuthority("ROLE_ORGANIZER")));
+
+        assertThatThrownBy(() -> eventService.updateGrade(otherOrganizer, 3L, eventId, grade.id(),
+                new SeatGradeUpdateRequest("VVIP", 200000)))
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.FORBIDDEN));
+    }
+
+    @Test
+    void updateGrade_throws_not_found_for_a_grade_belonging_to_a_different_event() {
+        Long eventId = createDraftEvent();
+        SeatGradeResponse grade = eventService.addGrade(organizerAuth(), 1L, eventId,
+                new SeatGradeCreateRequest("VIP", 150000, 5));
+        Long otherEventId = createDraftEventForCleanupOnly();
+
+        assertThatThrownBy(() -> eventService.updateGrade(organizerAuth(), 1L, otherEventId, grade.id(),
+                new SeatGradeUpdateRequest("VVIP", 200000)))
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
+
+        eventRepository.deleteById(otherEventId);
+    }
+
+    private Long createDraftEventForCleanupOnly() {
+        EventCreateRequest request = new EventCreateRequest("다른 콘서트", "다른 장소", null, null,
+                LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(8));
+        return eventService.createEvent(organizerAuth(), 1L, request).id();
+    }
+
+    @Test
+    void getSeats_groups_seats_by_grade_name() {
+        Long eventId = createDraftEvent();
+        eventService.addGrade(organizerAuth(), 1L, eventId, new SeatGradeCreateRequest("VIP", 150000, 2));
+        eventService.addGrade(organizerAuth(), 1L, eventId, new SeatGradeCreateRequest("R", 100000, 3));
+
+        Map<String, List<SeatResponse>> seats = eventService.getSeats(eventId, null);
+
+        assertThat(seats.get("VIP")).hasSize(2);
+        assertThat(seats.get("R")).hasSize(3);
+    }
+
+    @Test
+    void getSeats_hides_seats_of_a_draft_event_from_a_non_owner() {
+        Long eventId = createDraftEvent();
+
+        assertThatThrownBy(() -> eventService.getSeats(eventId, 2L))
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
     }
 }
