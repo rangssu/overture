@@ -2,6 +2,8 @@ package mtf.com.overture.core;
 
 import mtf.com.overture.core.security.AuthErrorCode;
 import mtf.com.overture.core.security.AuthException;
+import mtf.com.overture.event.EventErrorCode;
+import mtf.com.overture.event.EventException;
 import mtf.com.overture.user.AuthController;
 import mtf.com.overture.user.dto.RefreshRequest;
 import org.junit.jupiter.api.Test;
@@ -45,5 +47,37 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().success()).isFalse();
         assertThat(response.getBody().error().code()).isEqualTo("INVALID_REQUEST");
         assertThat(response.getBody().error().message()).contains("refreshToken", "공백일 수 없습니다");
+    }
+
+    @Test
+    void handleEventException_returns_the_http_status_and_code_from_the_error_code() {
+        EventException exception = new EventException(EventErrorCode.NOT_FOUND);
+
+        ResponseEntity<ApiErrorResponse> response = handler.handleEventException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isFalse();
+        assertThat(response.getBody().error().code()).isEqualTo("EVENT_001");
+    }
+
+    @Test
+    void handleEventException_maps_forbidden_to_403() {
+        EventException exception = new EventException(EventErrorCode.FORBIDDEN);
+
+        ResponseEntity<ApiErrorResponse> response = handler.handleEventException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody().error().code()).isEqualTo("EVENT_002");
+    }
+
+    @Test
+    void handleEventException_maps_invalid_sale_period_to_400() {
+        EventException exception = new EventException(EventErrorCode.INVALID_SALE_PERIOD);
+
+        ResponseEntity<ApiErrorResponse> response = handler.handleEventException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error().code()).isEqualTo("EVENT_003");
     }
 }
