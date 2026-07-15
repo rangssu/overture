@@ -126,4 +126,18 @@ class EventServiceGradeTest {
                 .isInstanceOf(EventException.class)
                 .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
     }
+
+    @Test
+    void addGrade_evicts_the_cached_grade_list() {
+        Long eventId = createDraftEvent();
+        eventService.addGrade(organizerAuth(), 1L, eventId, new SeatGradeCreateRequest("VIP", 150000, 5));
+        eventService.listGrades(eventId, 1L);
+
+        eventService.addGrade(organizerAuth(), 1L, eventId, new SeatGradeCreateRequest("R", 100000, 10));
+        List<SeatGradeResponse> grades = eventService.listGrades(eventId, 1L);
+
+        assertThat(grades).hasSize(2);
+        Event event = eventRepository.findById(eventId).orElseThrow();
+        assertThat(event.getStatus()).isEqualTo(EventStatus.PUBLISHED);
+    }
 }
