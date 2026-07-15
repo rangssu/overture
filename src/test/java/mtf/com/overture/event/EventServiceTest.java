@@ -125,6 +125,21 @@ class EventServiceTest {
     }
 
     @Test
+    void getEvent_hides_a_cached_draft_event_from_a_non_owner() {
+        EventResponse created = eventService.createEvent(organizerAuth(), 1L, validRequest());
+        createdEventId = created.id();
+
+        // Cache-miss path: owner reads the event, populating the cache via EventCache.putEvent.
+        eventService.getEvent(created.id(), 1L);
+
+        // Cache-hit path: a different, non-owner viewer must still be denied even though
+        // the response now comes from the cache, proving assertVisible re-runs and fails closed.
+        assertThatThrownBy(() -> eventService.getEvent(created.id(), 2L))
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
+    }
+
+    @Test
     void listEvents_returns_only_published_events() {
         EventResponse draft = eventService.createEvent(organizerAuth(), 1L, validRequest());
         createdEventId = draft.id();
@@ -132,5 +147,13 @@ class EventServiceTest {
         var page = eventService.listEvents(PageRequest.of(0, 20));
 
         assertThat(page.getContent()).noneMatch(e -> e.id().equals(draft.id()));
+
+        Event event = eventRepository.findById(draft.id()).orElseThrow();
+        event.publish();
+        eventRepository.saveAndFlush(event);
+
+        var pageAfterPublish = eventService.listEvents(PageRequest.of(0, 20));
+
+        assertThat(pageAfterPublish.getContent()).anyMatch(e -> e.id().equals(draft.id()));
     }
 }
