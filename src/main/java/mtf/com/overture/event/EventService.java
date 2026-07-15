@@ -3,6 +3,8 @@ package mtf.com.overture.event;
 import mtf.com.overture.event.dto.EventCreateRequest;
 import mtf.com.overture.event.dto.EventResponse;
 import mtf.com.overture.event.dto.EventUpdateRequest;
+import mtf.com.overture.event.dto.SeatGradeCreateRequest;
+import mtf.com.overture.event.dto.SeatGradeResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -18,10 +22,15 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final EventCache eventCache;
+    private final SeatGradeRepository seatGradeRepository;
+    private final SeatRepository seatRepository;
 
-    public EventService(EventRepository eventRepository, EventCache eventCache) {
+    public EventService(EventRepository eventRepository, EventCache eventCache,
+                         SeatGradeRepository seatGradeRepository, SeatRepository seatRepository) {
         this.eventRepository = eventRepository;
         this.eventCache = eventCache;
+        this.seatGradeRepository = seatGradeRepository;
+        this.seatRepository = seatRepository;
     }
 
     @Transactional
@@ -82,6 +91,57 @@ public class EventService {
     public Page<EventResponse> listEvents(Pageable pageable) {
         return eventRepository.findByStatus(EventStatus.PUBLISHED, pageable)
                 .map(EventResponse::from);
+    }
+
+    @Transactional
+    public SeatGradeResponse addGrade(Authentication authentication, Long userId, Long eventId, SeatGradeCreateRequest request) {
+        Event event = findEvent(eventId);
+        requireOwnerOrAdmin(authentication, event, userId);
+
+        SeatGrade grade = seatGradeRepository.save(SeatGrade.builder()
+                .eventId(eventId)
+                .name(request.name())
+                .price(request.price())
+                .totalCount(request.totalCount())
+                .remainCount(request.totalCount())
+                .build());
+
+        List<Seat> seats = new ArrayList<>();
+        for (int seatNumber = 1; seatNumber <= request.totalCount(); seatNumber++) {
+            seats.add(Seat.builder()
+                    .gradeId(grade.getId())
+                    .row(1)
+                    .col(seatNumber)
+                    .status(SeatStatus.AVAILABLE)
+                    .build());
+        }
+        seatRepository.saveAll(seats);
+
+        if (event.isDraft()) {
+            event.publish();
+        }
+
+        eventCache.evictEvent(eventId);
+        eventCache.evictGrades(eventId);
+
+        return SeatGradeResponse.from(grade);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SeatGradeResponse> listGrades(Long eventId, Long viewerId) {
+        Event event = findEvent(eventId);
+        assertVisible(event.getStatus().name(), event.getCreatedBy(), viewerId);
+
+        Optional<List<SeatGradeResponse>> cached = eventCache.getGrades(eventId);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
+        List<SeatGradeResponse> grades = seatGradeRepository.findByEventId(eventId).stream()
+                .map(SeatGradeResponse::from)
+                .toList();
+        eventCache.putGrades(eventId, grades);
+        return grades;
     }
 
     Event findEvent(Long eventId) {
