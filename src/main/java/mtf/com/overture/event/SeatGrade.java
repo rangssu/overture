@@ -33,6 +33,9 @@ public class SeatGrade {
     @Column(name = "remain_count", nullable = false)
     private Integer remainCount;
 
+    @Version
+    private Long version;
+
     @Builder
     public SeatGrade(Long eventId, String name, Integer price, Integer totalCount, Integer remainCount) {
         this.eventId = eventId;
