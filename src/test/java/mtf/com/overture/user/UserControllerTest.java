@@ -98,6 +98,30 @@ class UserControllerTest {
     }
 
     @Test
+    void updateMe_sets_the_profile_image_url() throws Exception {
+        UserUpdateRequest request = new UserUpdateRequest(null, "https://example.com/p.png");
+
+        mockMvc.perform(patch("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileImageUrl").value("https://example.com/p.png"));
+    }
+
+    @Test
+    void updateMe_rejects_an_invalid_profile_image_url_format_with_400() throws Exception {
+        UserUpdateRequest request = new UserUpdateRequest(null, "javascript:alert(1)");
+
+        mockMvc.perform(patch("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
     void updateMe_rejects_a_duplicate_nickname_with_409() throws Exception {
         userRepository.save(User.builder()
                 .email("taken-" + System.nanoTime() + "@kakao.com")
