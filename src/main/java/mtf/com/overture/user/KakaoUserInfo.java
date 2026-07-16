@@ -14,7 +14,11 @@ public class KakaoUserInfo implements OAuth2UserInfo {
 
     @Override
     public String getProviderId() {
-        return String.valueOf(response.id());
+        Long id = response.id();
+        if (id == null) {
+            throw new IllegalStateException("카카오 응답에 사용자 id가 없습니다.");
+        }
+        return String.valueOf(id);
     }
 
     @Override

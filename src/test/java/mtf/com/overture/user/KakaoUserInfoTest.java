@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KakaoUserInfoTest {
 
@@ -54,6 +55,17 @@ class KakaoUserInfoTest {
         assertThat(userInfo.getEmail()).isNull();
         assertThat(userInfo.getNickname()).isNull();
         assertThat(userInfo.getProfileImageUrl()).isNull();
+    }
+
+    @Test
+    void throws_when_id_missing() {
+        Map<String, Object> attributes = new HashMap<>();
+        // "id" key intentionally absent - malformed/unexpected kakao response
+
+        KakaoUserInfo userInfo = new KakaoUserInfo(attributes, objectMapper);
+
+        assertThatThrownBy(userInfo::getProviderId)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private Map<String, Object> kakaoAttributesWithProfile(String id, String email, String nickname, String imageUrl) {

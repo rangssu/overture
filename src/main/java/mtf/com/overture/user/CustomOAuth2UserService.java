@@ -35,8 +35,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         OAuth2UserInfo userInfo = OAuth2UserInfoFactory.create(registrationId, attributes, objectMapper);
         OauthProvider provider = toOauthProvider(registrationId);
 
-        return userRepository.findByOauthProviderAndOauthProviderId(provider, userInfo.getProviderId())
+        User user = userRepository.findByOauthProviderAndOauthProviderId(provider, userInfo.getProviderId())
                 .orElseGet(() -> createOrGetUser(provider, userInfo));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new OAuth2AuthenticationException(new OAuth2Error(
+                    "inactive_user", "탈퇴하거나 정지된 계정입니다.", null));
+        }
+
+        return user;
     }
 
     private OauthProvider toOauthProvider(String registrationId) {

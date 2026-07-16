@@ -137,6 +137,24 @@ class CustomOAuth2UserServiceTest {
     }
 
     @Test
+    void resolveUser_rejects_login_when_user_status_not_active() {
+        userRepository.save(User.builder()
+                .email("withdrawn@kakao.com")
+                .nickname("탈퇴유저")
+                .oauthProvider(OauthProvider.KAKAO)
+                .oauthProviderId("888")
+                .role(Role.USER)
+                .status(UserStatus.WITHDRAWN)
+                .createdAt(LocalDateTime.now())
+                .build());
+
+        service = new CustomOAuth2UserService(userRepository, objectMapper);
+
+        assertThatThrownBy(() -> service.resolveUser("kakao", kakaoAttributes("888", "withdrawn@kakao.com", "탈퇴유저")))
+                .isInstanceOf(OAuth2AuthenticationException.class);
+    }
+
+    @Test
     void resolveUser_rejects_unsupported_registration_id() {
         // IllegalArgumentException처럼 unchecked exception을 던지면 OAuth2LoginAuthenticationFilter가
         // AuthenticationException으로 인식하지 못해 OAuth2FailureHandler를 우회하고 500으로 노출된다.
