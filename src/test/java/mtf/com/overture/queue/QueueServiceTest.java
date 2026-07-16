@@ -242,4 +242,25 @@ class QueueServiceTest {
         assertThat(redisTemplate.opsForZSet().rank(key, "999")).isNull();
         assertThat(redisTemplate.opsForZSet().rank(key, "2")).isNotNull();
     }
+
+    @Test
+    void getStatus_lazily_removes_entries_older_than_the_ttl() {
+        Long eventId = publishedEvent();
+        String key = "queue:" + eventId;
+        long staleScore = System.currentTimeMillis() - Duration.ofMinutes(5).toMillis() - 1000;
+        redisTemplate.opsForZSet().add(key, "999", staleScore);
+
+        queueService.enter(eventId, 2L);
+
+        long anotherStaleScore = System.currentTimeMillis() - Duration.ofMinutes(5).toMillis() - 1000;
+        redisTemplate.opsForZSet().add(key, "888", anotherStaleScore);
+
+        QueueStatusResponse status = queueService.getStatus(eventId, 2L);
+
+        assertThat(redisTemplate.opsForZSet().rank(key, "999")).isNull();
+        assertThat(redisTemplate.opsForZSet().rank(key, "888")).isNull();
+        assertThat(status.position()).isEqualTo(1);
+        assertThat(status.totalWaiting()).isEqualTo(1);
+        assertThat(status.admitted()).isTrue();
+    }
 }

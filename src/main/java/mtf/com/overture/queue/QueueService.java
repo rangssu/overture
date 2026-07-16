@@ -15,9 +15,10 @@ import java.time.Duration;
 public class QueueService {
 
     private static final String KEY_PREFIX = "queue:";
-    // 이탈(DELETE) 호출이 누락된 사용자를 위한 안전장치. 진입 시각(score) 기준으로만 정리하므로
-    // 아주 깊은 대기열에서는 5분 넘게 대기 중인 정상 사용자도 함께 밀려날 수 있다 — 알려진 Phase 1
-    // 한계이며, Phase 2 진입 토큰(TTL 5분)이 정식으로 해결한다.
+    // 이탈(DELETE) 호출이 누락된 사용자를 위한 안전장치. 대기열 순번/깊이와 무관하게 오직 진입
+    // 시각(score) 기준으로만 정리하므로, 이미 입장 처리(rank < capacity)된 사용자를 포함해 어떤
+    // 위치에 있든 5분간 자리를 지키고 있으면 함께 밀려날 수 있다 — 알려진 Phase 1 한계이며,
+    // Phase 2 진입 토큰(TTL 5분)이 정식으로 해결한다.
     private static final Duration TTL = Duration.ofMinutes(5);
 
     private final StringRedisTemplate redisTemplate;
