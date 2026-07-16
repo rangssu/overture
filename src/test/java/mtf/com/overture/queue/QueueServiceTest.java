@@ -188,4 +188,26 @@ class QueueServiceTest {
         assertThat(userBAfter.position()).isEqualTo(2);
         assertThat(userBAfter.totalWaiting()).isEqualTo(2);
     }
+
+    @Test
+    void getStatus_returns_the_same_position_as_enter_without_re_adding() {
+        Long eventId = publishedEvent();
+        queueService.enter(eventId, 2L);
+        queueService.enter(eventId, 3L);
+
+        QueueStatusResponse status = queueService.getStatus(eventId, 3L);
+
+        assertThat(status.position()).isEqualTo(2);
+        assertThat(status.totalWaiting()).isEqualTo(2);
+        assertThat(status.admitted()).isTrue();
+    }
+
+    @Test
+    void getStatus_throws_when_the_user_never_entered_the_queue() {
+        Long eventId = publishedEvent();
+        queueService.enter(eventId, 2L);
+
+        assertThatThrownBy(() -> queueService.getStatus(eventId, 999L))
+                .isInstanceOf(QueueException.class);
+    }
 }
