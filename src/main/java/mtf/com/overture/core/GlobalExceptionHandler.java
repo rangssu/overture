@@ -2,6 +2,7 @@ package mtf.com.overture.core;
 
 import mtf.com.overture.core.security.AuthException;
 import mtf.com.overture.event.EventException;
+import mtf.com.overture.queue.QueueException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,6 +30,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EventException.class)
     public ResponseEntity<ApiErrorResponse> handleEventException(EventException e) {
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+                .body(ApiErrorResponse.of(e.getErrorCode().getCode(), e.getErrorCode().getMessage()));
+    }
+
+    @ExceptionHandler(QueueException.class)
+    public ResponseEntity<ApiErrorResponse> handleQueueException(QueueException e) {
         return ResponseEntity.status(e.getErrorCode().getHttpStatus())
                 .body(ApiErrorResponse.of(e.getErrorCode().getCode(), e.getErrorCode().getMessage()));
     }
