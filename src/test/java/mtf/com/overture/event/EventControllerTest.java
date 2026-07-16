@@ -50,6 +50,7 @@ class EventControllerTest {
 
     private String organizerToken;
     private String userToken;
+    private String adminToken;
     private Long createdEventId;
 
     @AfterEach
@@ -82,6 +83,13 @@ class EventControllerTest {
             userToken = jwtProvider.createAccessToken(2L, "USER");
         }
         return userToken;
+    }
+
+    private String adminToken() {
+        if (adminToken == null) {
+            adminToken = jwtProvider.createAccessToken(9L, "ADMIN");
+        }
+        return adminToken;
     }
 
     private EventCreateRequest validRequest() {
@@ -195,4 +203,20 @@ class EventControllerTest {
         mockMvc.perform(get("/api/v1/events"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void detail_shows_a_draft_event_to_an_admin_who_is_not_the_owner() throws Exception {
+        Event event = eventRepository.saveAndFlush(Event.builder()
+                .title("콘서트").venue("올림픽공원")
+                .saleStartAt(LocalDateTime.now()).saleEndAt(LocalDateTime.now().plusDays(7))
+                .status(EventStatus.DRAFT).createdBy(1L).createdAt(LocalDateTime.now())
+                .build());
+        createdEventId = event.getId();
+
+        mockMvc.perform(get("/api/v1/events/" + event.getId())
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(event.getId()));
+    }
+
 }

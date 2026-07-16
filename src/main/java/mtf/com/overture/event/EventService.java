@@ -62,6 +62,7 @@ public class EventService {
     @Transactional
     public EventResponse updateEvent(Authentication authentication, Long userId, Long eventId, EventUpdateRequest request) {
         Event event = findEvent(eventId);
+        assertVisible(authentication, event.getStatus().name(), event.getCreatedBy(), userId);
         requireOwnerOrAdmin(authentication, event, userId);
 
         LocalDateTime newSaleStartAt = request.saleStartAt() != null ? request.saleStartAt() : event.getSaleStartAt();
@@ -83,15 +84,20 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public EventResponse getEvent(Long eventId, Long viewerId) {
+        return getEvent(null, eventId, viewerId);
+    }
+
+    @Transactional(readOnly = true)
+    public EventResponse getEvent(Authentication authentication, Long eventId, Long viewerId) {
         Optional<EventResponse> cached = eventCache.getEvent(eventId);
         if (cached.isPresent()) {
             EventResponse response = cached.get();
-            assertVisible(response.status(), response.createdBy(), viewerId);
+            assertVisible(authentication, response.status(), response.createdBy(), viewerId);
             return response;
         }
 
         Event event = findEvent(eventId);
-        assertVisible(event.getStatus().name(), event.getCreatedBy(), viewerId);
+        assertVisible(authentication, event.getStatus().name(), event.getCreatedBy(), viewerId);
 
         EventResponse response = EventResponse.from(event);
         eventCache.putEvent(eventId, response);
@@ -107,6 +113,7 @@ public class EventService {
     @Transactional
     public SeatGradeResponse addGrade(Authentication authentication, Long userId, Long eventId, SeatGradeCreateRequest request) {
         Event event = findEvent(eventId);
+        assertVisible(authentication, event.getStatus().name(), event.getCreatedBy(), userId);
         requireOwnerOrAdmin(authentication, event, userId);
 
         SeatGrade grade = seatGradeRepository.save(SeatGrade.builder()
@@ -145,8 +152,13 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public List<SeatGradeResponse> listGrades(Long eventId, Long viewerId) {
+        return listGrades(null, eventId, viewerId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SeatGradeResponse> listGrades(Authentication authentication, Long eventId, Long viewerId) {
         Event event = findEvent(eventId);
-        assertVisible(event.getStatus().name(), event.getCreatedBy(), viewerId);
+        assertVisible(authentication, event.getStatus().name(), event.getCreatedBy(), viewerId);
 
         Optional<List<SeatGradeResponse>> cached = eventCache.getGrades(eventId);
         if (cached.isPresent()) {
@@ -163,6 +175,7 @@ public class EventService {
     @Transactional
     public SeatGradeResponse updateGrade(Authentication authentication, Long userId, Long eventId, Long gradeId, SeatGradeUpdateRequest request) {
         Event event = findEvent(eventId);
+        assertVisible(authentication, event.getStatus().name(), event.getCreatedBy(), userId);
         requireOwnerOrAdmin(authentication, event, userId);
 
         SeatGrade grade = seatGradeRepository.findById(gradeId)
@@ -184,8 +197,13 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public Map<String, List<SeatResponse>> getSeats(Long eventId, Long viewerId) {
+        return getSeats(null, eventId, viewerId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, List<SeatResponse>> getSeats(Authentication authentication, Long eventId, Long viewerId) {
         Event event = findEvent(eventId);
-        assertVisible(event.getStatus().name(), event.getCreatedBy(), viewerId);
+        assertVisible(authentication, event.getStatus().name(), event.getCreatedBy(), viewerId);
 
         List<SeatGrade> grades = seatGradeRepository.findByEventId(eventId);
         List<Long> gradeIds = grades.stream().map(SeatGrade::getId).toList();
@@ -205,10 +223,13 @@ public class EventService {
                 .orElseThrow(() -> new EventException(EventErrorCode.NOT_FOUND));
     }
 
-    void assertVisible(String status, Long createdBy, Long viewerId) {
+    void assertVisible(Authentication authentication, String status, Long createdBy, Long viewerId) {
         boolean isDraft = EventStatus.DRAFT.name().equals(status);
         boolean isOwner = viewerId != null && viewerId.equals(createdBy);
-        if (isDraft && !isOwner) {
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(a -> a.equals("ROLE_ADMIN"));
+        if (isDraft && !isOwner && !isAdmin) {
             throw new EventException(EventErrorCode.NOT_FOUND);
         }
     }

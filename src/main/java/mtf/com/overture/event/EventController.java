@@ -47,8 +47,8 @@ public class EventController {
     }
 
     @GetMapping("/{id}")
-    public EventResponse detail(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
-        return eventService.getEvent(id, userId);
+    public EventResponse detail(Authentication authentication, @PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        return eventService.getEvent(authentication, id, userId);
     }
 
     @PatchMapping("/{id}")
@@ -64,8 +64,8 @@ public class EventController {
     }
 
     @GetMapping("/{id}/grades")
-    public List<SeatGradeResponse> listGrades(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
-        return eventService.listGrades(id, userId);
+    public List<SeatGradeResponse> listGrades(Authentication authentication, @PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        return eventService.listGrades(authentication, id, userId);
     }
 
     @PatchMapping("/{id}/grades/{gradeId}")
@@ -76,7 +76,7 @@ public class EventController {
     }
 
     @GetMapping("/{id}/seats")
-    public Map<String, List<SeatResponse>> seats(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
-        return eventService.getSeats(id, userId);
+    public Map<String, List<SeatResponse>> seats(Authentication authentication, @PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        return eventService.getSeats(authentication, id, userId);
     }
 }

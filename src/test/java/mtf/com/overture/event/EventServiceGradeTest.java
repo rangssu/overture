@@ -103,7 +103,9 @@ class EventServiceGradeTest {
     }
 
     @Test
-    void addGrade_rejects_a_caller_who_is_not_the_owner() {
+    void addGrade_hides_a_draft_event_from_a_non_owner_non_admin_caller_as_not_found() {
+        // event is still DRAFT (no grade added yet), so assertVisible runs before the owner/admin
+        // check and yields the same 404 a GET on this event would.
         Long eventId = createDraftEvent();
         Authentication otherOrganizer = new TestingAuthenticationToken(
                 3L, null, List.of(new SimpleGrantedAuthority("ROLE_ORGANIZER")));
@@ -111,7 +113,7 @@ class EventServiceGradeTest {
         assertThatThrownBy(() -> eventService.addGrade(otherOrganizer, 3L, eventId,
                 new SeatGradeCreateRequest("VIP", 150000, 5)))
                 .isInstanceOf(EventException.class)
-                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.FORBIDDEN));
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
     }
 
     @Test

@@ -139,6 +139,26 @@ class EventServiceTest {
     }
 
     @Test
+    void getEvent_shows_a_draft_event_to_an_admin_who_is_not_the_owner() {
+        EventResponse created = eventService.createEvent(organizerAuth(), 1L, validRequest());
+        createdEventId = created.id();
+
+        EventResponse response = eventService.getEvent(adminAuth(), created.id(), 9L);
+
+        assertThat(response.id()).isEqualTo(created.id());
+    }
+
+    @Test
+    void getEvent_hides_a_draft_event_from_a_non_owner_non_admin_via_the_authentication_aware_overload() {
+        EventResponse created = eventService.createEvent(organizerAuth(), 1L, validRequest());
+        createdEventId = created.id();
+
+        assertThatThrownBy(() -> eventService.getEvent(userAuth(), created.id(), 2L))
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
+    }
+
+    @Test
     void getEvent_hides_a_cached_draft_event_from_a_non_owner() {
         EventResponse created = eventService.createEvent(organizerAuth(), 1L, validRequest());
         createdEventId = created.id();
@@ -184,9 +204,30 @@ class EventServiceTest {
     }
 
     @Test
-    void updateEvent_rejects_a_caller_who_is_not_the_owner_or_admin() {
+    void updateEvent_hides_a_draft_event_from_a_non_owner_non_admin_caller_as_not_found() {
+        // event is still DRAFT here (never published), so the visibility check now runs before the
+        // owner/admin check and yields the same 404 a GET on this event would - existence is not
+        // revealed to a caller who couldn't see the event via GET either.
         EventResponse created = eventService.createEvent(organizerAuth(), 1L, validRequest());
         createdEventId = created.id();
+        EventUpdateRequest update = new EventUpdateRequest("새 제목", null, null, null, null, null);
+        Authentication otherOrganizer = new org.springframework.security.authentication.TestingAuthenticationToken(
+                3L, null, List.of(new SimpleGrantedAuthority("ROLE_ORGANIZER")));
+
+        assertThatThrownBy(() -> eventService.updateEvent(otherOrganizer, 3L, created.id(), update))
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
+    }
+
+    @Test
+    void updateEvent_rejects_a_non_owner_non_admin_caller_on_a_published_event_as_forbidden() {
+        // event is PUBLISHED, so assertVisible passes and the owner/admin check is reached,
+        // preserving the pre-existing 403 behaviour for events that are actually visible.
+        EventResponse created = eventService.createEvent(organizerAuth(), 1L, validRequest());
+        createdEventId = created.id();
+        Event event = eventRepository.findById(created.id()).orElseThrow();
+        event.publish();
+        eventRepository.saveAndFlush(event);
         EventUpdateRequest update = new EventUpdateRequest("새 제목", null, null, null, null, null);
         Authentication otherOrganizer = new org.springframework.security.authentication.TestingAuthenticationToken(
                 3L, null, List.of(new SimpleGrantedAuthority("ROLE_ORGANIZER")));
