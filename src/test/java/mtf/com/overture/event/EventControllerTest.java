@@ -219,4 +219,38 @@ class EventControllerTest {
                 .andExpect(jsonPath("$.id").value(event.getId()));
     }
 
+    @Test
+    void addGrade_rejects_a_total_count_above_the_cap() throws Exception {
+        Event event = eventRepository.saveAndFlush(Event.builder()
+                .title("콘서트").venue("올림픽공원")
+                .saleStartAt(LocalDateTime.now()).saleEndAt(LocalDateTime.now().plusDays(7))
+                .status(EventStatus.DRAFT).createdBy(1L).createdAt(LocalDateTime.now())
+                .build());
+        createdEventId = event.getId();
+        SeatGradeCreateRequest request = new SeatGradeCreateRequest("VIP", 150000, 50001);
+
+        mockMvc.perform(post("/api/v1/events/" + event.getId() + "/grades")
+                        .header("Authorization", "Bearer " + organizerToken())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void addGrade_accepts_a_total_count_at_the_cap() throws Exception {
+        Event event = eventRepository.saveAndFlush(Event.builder()
+                .title("콘서트").venue("올림픽공원")
+                .saleStartAt(LocalDateTime.now()).saleEndAt(LocalDateTime.now().plusDays(7))
+                .status(EventStatus.DRAFT).createdBy(1L).createdAt(LocalDateTime.now())
+                .build());
+        createdEventId = event.getId();
+        SeatGradeCreateRequest request = new SeatGradeCreateRequest("VIP", 150000, 50000);
+
+        mockMvc.perform(post("/api/v1/events/" + event.getId() + "/grades")
+                        .header("Authorization", "Bearer " + organizerToken())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(50000));
+    }
 }
