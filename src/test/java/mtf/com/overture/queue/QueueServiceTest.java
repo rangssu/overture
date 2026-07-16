@@ -156,4 +156,36 @@ class QueueServiceTest {
         assertThat(response.position()).isEqualTo(capacity + 1);
         assertThat(response.admitted()).isFalse();
     }
+
+    @Test
+    void enter_marks_admitted_true_when_rank_is_just_below_capacity() {
+        Long eventId = publishedEvent();
+        long baseScore = System.currentTimeMillis() - 60_000;
+        for (int i = 0; i < capacity - 1; i++) {
+            redisTemplate.opsForZSet().add("queue:" + eventId, "dummy-" + i, baseScore + i);
+        }
+
+        QueueStatusResponse response = queueService.enter(eventId, 2L);
+
+        assertThat(response.position()).isEqualTo(capacity);
+        assertThat(response.admitted()).isTrue();
+    }
+
+    @Test
+    void enter_preserves_original_score_and_position_on_re_entry() {
+        Long eventId = publishedEvent();
+
+        QueueStatusResponse userAFirst = queueService.enter(eventId, 2L);
+        QueueStatusResponse userBFirst = queueService.enter(eventId, 3L);
+        QueueStatusResponse userASecond = queueService.enter(eventId, 2L);
+
+        assertThat(userAFirst.position()).isEqualTo(1);
+        assertThat(userBFirst.position()).isEqualTo(2);
+        assertThat(userASecond.position()).isEqualTo(1);
+        assertThat(userASecond.totalWaiting()).isEqualTo(2);
+
+        QueueStatusResponse userBAfter = queueService.enter(eventId, 3L);
+        assertThat(userBAfter.position()).isEqualTo(2);
+        assertThat(userBAfter.totalWaiting()).isEqualTo(2);
+    }
 }
