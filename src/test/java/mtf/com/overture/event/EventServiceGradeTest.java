@@ -127,6 +127,34 @@ class EventServiceGradeTest {
     }
 
     @Test
+    void addGrade_rejects_a_duplicate_grade_name_within_the_same_event() {
+        Long eventId = createDraftEvent();
+        eventService.addGrade(organizerAuth(), 1L, eventId, new SeatGradeCreateRequest("VIP", 150000, 5));
+
+        assertThatThrownBy(() -> eventService.addGrade(organizerAuth(), 1L, eventId,
+                new SeatGradeCreateRequest("VIP", 200000, 3)))
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.DUPLICATE_GRADE_NAME));
+    }
+
+    @Test
+    void addGrade_allows_the_same_grade_name_across_different_events() {
+        Long eventId = createDraftEvent();
+        eventService.addGrade(organizerAuth(), 1L, eventId, new SeatGradeCreateRequest("VIP", 150000, 5));
+        Long otherEventId = createDraftEventForCleanupOnly();
+
+        SeatGradeResponse response = eventService.addGrade(organizerAuth(), 1L, otherEventId,
+                new SeatGradeCreateRequest("VIP", 150000, 5));
+
+        assertThat(response.name()).isEqualTo("VIP");
+
+        List<SeatGrade> otherGrades = seatGradeRepository.findByEventId(otherEventId);
+        seatRepository.deleteAll(seatRepository.findByGradeIdIn(otherGrades.stream().map(SeatGrade::getId).toList()));
+        seatGradeRepository.deleteAll(otherGrades);
+        eventRepository.deleteById(otherEventId);
+    }
+
+    @Test
     void listGrades_returns_all_grades_for_the_event() {
         Long eventId = createDraftEvent();
         eventService.addGrade(organizerAuth(), 1L, eventId, new SeatGradeCreateRequest("VIP", 150000, 5));

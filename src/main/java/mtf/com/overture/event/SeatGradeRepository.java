@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface SeatGradeRepository extends JpaRepository<SeatGrade, Long> {
     List<SeatGrade> findByEventId(Long eventId);
+
+    boolean existsByEventIdAndName(Long eventId, String name);
 }

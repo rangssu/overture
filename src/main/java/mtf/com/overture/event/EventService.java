@@ -116,6 +116,10 @@ public class EventService {
         assertVisible(authentication, event.getStatus().name(), event.getCreatedBy(), userId);
         requireOwnerOrAdmin(authentication, event, userId);
 
+        if (seatGradeRepository.existsByEventIdAndName(eventId, request.name())) {
+            throw new EventException(EventErrorCode.DUPLICATE_GRADE_NAME);
+        }
+
         SeatGrade grade = seatGradeRepository.save(SeatGrade.builder()
                 .eventId(eventId)
                 .name(request.name())

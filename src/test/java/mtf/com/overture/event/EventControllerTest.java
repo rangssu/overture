@@ -253,4 +253,28 @@ class EventControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalCount").value(50000));
     }
+
+    @Test
+    void addGrade_rejects_a_duplicate_grade_name_within_the_same_event() throws Exception {
+        Event event = eventRepository.saveAndFlush(Event.builder()
+                .title("콘서트").venue("올림픽공원")
+                .saleStartAt(LocalDateTime.now()).saleEndAt(LocalDateTime.now().plusDays(7))
+                .status(EventStatus.DRAFT).createdBy(1L).createdAt(LocalDateTime.now())
+                .build());
+        createdEventId = event.getId();
+        SeatGradeCreateRequest request = new SeatGradeCreateRequest("VIP", 150000, 3);
+
+        mockMvc.perform(post("/api/v1/events/" + event.getId() + "/grades")
+                        .header("Authorization", "Bearer " + organizerToken())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/events/" + event.getId() + "/grades")
+                        .header("Authorization", "Bearer " + organizerToken())
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("EVENT_004"));
+    }
 }
