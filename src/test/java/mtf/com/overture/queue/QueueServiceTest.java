@@ -19,6 +19,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -209,5 +210,36 @@ class QueueServiceTest {
 
         assertThatThrownBy(() -> queueService.getStatus(eventId, 999L))
                 .isInstanceOf(QueueException.class);
+    }
+
+    @Test
+    void leave_removes_the_user_so_status_lookup_then_throws() {
+        Long eventId = publishedEvent();
+        queueService.enter(eventId, 2L);
+
+        queueService.leave(eventId, 2L);
+
+        assertThatThrownBy(() -> queueService.getStatus(eventId, 2L))
+                .isInstanceOf(QueueException.class);
+    }
+
+    @Test
+    void leave_does_not_throw_when_the_user_was_never_in_the_queue() {
+        Long eventId = publishedEvent();
+
+        queueService.leave(eventId, 2L);
+    }
+
+    @Test
+    void enter_lazily_removes_entries_older_than_the_ttl() {
+        Long eventId = publishedEvent();
+        String key = "queue:" + eventId;
+        long staleScore = System.currentTimeMillis() - Duration.ofMinutes(5).toMillis() - 1000;
+        redisTemplate.opsForZSet().add(key, "999", staleScore);
+
+        queueService.enter(eventId, 2L);
+
+        assertThat(redisTemplate.opsForZSet().rank(key, "999")).isNull();
+        assertThat(redisTemplate.opsForZSet().rank(key, "2")).isNotNull();
     }
 }

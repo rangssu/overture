@@ -43,6 +43,10 @@ public class QueueService {
         return buildStatus(eventId, userId);
     }
 
+    public void leave(Long eventId, Long userId) {
+        redisTemplate.opsForZSet().remove(key(eventId), String.valueOf(userId));
+    }
+
     QueueStatusResponse buildStatus(Long eventId, Long userId) {
         Long rank = redisTemplate.opsForZSet().rank(key(eventId), String.valueOf(userId));
         if (rank == null) {
