@@ -1,5 +1,6 @@
 package mtf.com.overture.queue;
 
+import mtf.com.overture.event.EventErrorCode;
 import mtf.com.overture.event.EventException;
 import mtf.com.overture.event.EventRepository;
 import mtf.com.overture.event.EventService;
@@ -111,7 +112,8 @@ class QueueServiceTest {
     @Test
     void enter_throws_when_the_event_does_not_exist() {
         assertThatThrownBy(() -> queueService.enter(999999L, 2L))
-                .isInstanceOf(EventException.class);
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
     }
 
     @Test
@@ -119,7 +121,8 @@ class QueueServiceTest {
         Long eventId = draftEvent();
 
         assertThatThrownBy(() -> queueService.enter(eventId, 1L))
-                .isInstanceOf(EventException.class);
+                .isInstanceOf(EventException.class)
+                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
     }
 
     @Test

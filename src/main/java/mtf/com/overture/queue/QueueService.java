@@ -3,6 +3,7 @@ package mtf.com.overture.queue;
 import mtf.com.overture.event.EventErrorCode;
 import mtf.com.overture.event.EventException;
 import mtf.com.overture.event.EventService;
+import mtf.com.overture.event.EventStatus;
 import mtf.com.overture.event.dto.EventResponse;
 import mtf.com.overture.queue.dto.QueueStatusResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -82,7 +83,7 @@ public class QueueService {
 
     private void assertPublished(Long eventId, Long userId) {
         EventResponse event = eventService.getEvent(eventId, userId);
-        if (!"PUBLISHED".equals(event.status())) {
+        if (!EventStatus.PUBLISHED.name().equals(event.status())) {
             throw new EventException(EventErrorCode.NOT_FOUND);
         }
     }
