@@ -145,6 +145,19 @@ class QueueServiceTest {
     }
 
     @Test
+    void enter_breaks_same_millisecond_ties_by_arrival_order_not_userId_string() {
+        Long eventId = publishedEvent();
+        queueService.enter(eventId, 9L);
+        queueService.enter(eventId, 10L);
+
+        QueueStatusResponse firstUser = queueService.getStatus(eventId, 9L);
+        QueueStatusResponse secondUser = queueService.getStatus(eventId, 10L);
+
+        assertThat(firstUser.position()).isEqualTo(1);
+        assertThat(secondUser.position()).isEqualTo(2);
+    }
+
+    @Test
     void enter_marks_admitted_false_once_rank_reaches_capacity() {
         Long eventId = publishedEvent();
         long baseScore = System.currentTimeMillis() - 60_000;
