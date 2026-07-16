@@ -37,3 +37,7 @@ jwt:
 app:
   oauth2:
     redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/oauth/callback}
+
+queue:
+  # 대기열 동시 입장 허용 인원(고정값). 이벤트별로 다르게 설정하지 않는다 — Phase 1 MVP 스코프.
+  capacity: ${QUEUE_CAPACITY:50}
