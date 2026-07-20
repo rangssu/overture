@@ -65,8 +65,8 @@ class QueueServiceTest extends QueueIntegrationTestSupport {
         Long eventId = draftEvent();
 
         assertThatThrownBy(() -> queueService.enter(eventId, 1L))
-                .isInstanceOf(EventException.class)
-                .satisfies(e -> assertThat(((EventException) e).getErrorCode()).isEqualTo(EventErrorCode.NOT_FOUND));
+                .isInstanceOf(QueueException.class)
+                .satisfies(e -> assertThat(((QueueException) e).getErrorCode()).isEqualTo(QueueErrorCode.EVENT_NOT_PUBLISHED));
     }
 
     @Test
@@ -106,10 +106,11 @@ class QueueServiceTest extends QueueIntegrationTestSupport {
 
     @Test
     void enter_marks_admitted_false_once_rank_reaches_capacity() {
+        // rank는 이제 순수 sequence(진입할 때마다 1부터 채번)로 정해지므로, 미리 심어두는 더미는
+        // 실제 진입자보다 반드시 낮은 score(음수)를 가져야 더미들이 앞순위를 차지한다.
         Long eventId = publishedEvent();
-        long baseScore = System.currentTimeMillis() - 60_000;
         for (int i = 0; i < capacity; i++) {
-            redisTemplate.opsForZSet().add("queue:" + eventId, "dummy-" + i, baseScore + i);
+            redisTemplate.opsForZSet().add("queue:" + eventId, "dummy-" + i, i - capacity);
         }
 
         QueueStatusResponse response = queueService.enter(eventId, 2L);
@@ -121,9 +122,8 @@ class QueueServiceTest extends QueueIntegrationTestSupport {
     @Test
     void enter_marks_admitted_true_when_rank_is_just_below_capacity() {
         Long eventId = publishedEvent();
-        long baseScore = System.currentTimeMillis() - 60_000;
         for (int i = 0; i < capacity - 1; i++) {
-            redisTemplate.opsForZSet().add("queue:" + eventId, "dummy-" + i, baseScore + i);
+            redisTemplate.opsForZSet().add("queue:" + eventId, "dummy-" + i, i - capacity);
         }
 
         QueueStatusResponse response = queueService.enter(eventId, 2L);
@@ -192,10 +192,14 @@ class QueueServiceTest extends QueueIntegrationTestSupport {
 
     @Test
     void enter_lazily_removes_entries_older_than_the_ttl() {
+        // 정리 대상 판별은 이제 joined 전용 ZSET(입장 시각 기준)으로만 하므로, "오래된 항목"을
+        // 재현하려면 rank ZSET과 joined ZSET 양쪽에 멤버를 심어야 한다.
         Long eventId = publishedEvent();
         String key = "queue:" + eventId;
+        String joinedKey = key + ":joined";
         long staleScore = System.currentTimeMillis() - Duration.ofMinutes(5).toMillis() - 1000;
-        redisTemplate.opsForZSet().add(key, "999", staleScore);
+        redisTemplate.opsForZSet().add(key, "999", -1);
+        redisTemplate.opsForZSet().add(joinedKey, "999", staleScore);
 
         queueService.enter(eventId, 2L);
 
@@ -207,13 +211,16 @@ class QueueServiceTest extends QueueIntegrationTestSupport {
     void getStatus_lazily_removes_entries_older_than_the_ttl() {
         Long eventId = publishedEvent();
         String key = "queue:" + eventId;
+        String joinedKey = key + ":joined";
         long staleScore = System.currentTimeMillis() - Duration.ofMinutes(5).toMillis() - 1000;
-        redisTemplate.opsForZSet().add(key, "999", staleScore);
+        redisTemplate.opsForZSet().add(key, "999", -1);
+        redisTemplate.opsForZSet().add(joinedKey, "999", staleScore);
 
         queueService.enter(eventId, 2L);
 
         long anotherStaleScore = System.currentTimeMillis() - Duration.ofMinutes(5).toMillis() - 1000;
-        redisTemplate.opsForZSet().add(key, "888", anotherStaleScore);
+        redisTemplate.opsForZSet().add(key, "888", -2);
+        redisTemplate.opsForZSet().add(joinedKey, "888", anotherStaleScore);
 
         QueueStatusResponse status = queueService.getStatus(eventId, 2L);
 

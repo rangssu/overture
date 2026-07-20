@@ -5,7 +5,8 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum QueueErrorCode {
-    NOT_IN_QUEUE(HttpStatus.NOT_FOUND, "QUEUE_001", "대기열에 참여하지 않았습니다.");
+    NOT_IN_QUEUE(HttpStatus.NOT_FOUND, "QUEUE_001", "대기열에 참여하지 않았습니다."),
+    EVENT_NOT_PUBLISHED(HttpStatus.NOT_FOUND, "QUEUE_002", "아직 공개되지 않은 이벤트입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
