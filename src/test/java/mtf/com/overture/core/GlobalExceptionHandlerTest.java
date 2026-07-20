@@ -2,9 +2,9 @@ package mtf.com.overture.core;
 
 import mtf.com.overture.core.security.AuthErrorCode;
 import mtf.com.overture.core.security.AuthException;
-import mtf.com.overture.user.AuthController;
-import mtf.com.overture.user.UserErrorCode;
-import mtf.com.overture.user.UserException;
+import mtf.com.overture.user.controller.AuthController;
+import mtf.com.overture.user.exception.UserErrorCode;
+import mtf.com.overture.user.exception.UserException;
 import mtf.com.overture.user.dto.RefreshRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;

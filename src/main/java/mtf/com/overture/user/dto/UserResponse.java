@@ -1,6 +1,6 @@
 package mtf.com.overture.user.dto;
+import mtf.com.overture.user.entity.User;
 
-import mtf.com.overture.user.User;
 
 import java.time.LocalDateTime;
 

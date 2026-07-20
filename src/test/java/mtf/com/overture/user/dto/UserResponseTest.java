@@ -1,9 +1,9 @@
 package mtf.com.overture.user.dto;
+import mtf.com.overture.user.entity.User;
+import mtf.com.overture.user.enums.UserStatus;
+import mtf.com.overture.user.enums.OauthProvider;
+import mtf.com.overture.user.enums.Role;
 
-import mtf.com.overture.user.OauthProvider;
-import mtf.com.overture.user.Role;
-import mtf.com.overture.user.User;
-import mtf.com.overture.user.UserStatus;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
