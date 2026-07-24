@@ -4,6 +4,8 @@ import mtf.com.overture.core.security.AuthErrorCode;
 import mtf.com.overture.core.security.AuthException;
 import mtf.com.overture.event.EventErrorCode;
 import mtf.com.overture.event.EventException;
+import mtf.com.overture.queue.QueueErrorCode;
+import mtf.com.overture.queue.QueueException;
 import mtf.com.overture.user.controller.AuthController;
 import mtf.com.overture.user.dto.RefreshRequest;
 import mtf.com.overture.user.exception.UserErrorCode;
@@ -103,5 +105,17 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().error().code()).isEqualTo("USER_002");
+    }
+
+    @Test
+    void handleQueueException_returns_404_with_error_body() {
+        QueueException exception = new QueueException(QueueErrorCode.NOT_IN_QUEUE);
+
+        ResponseEntity<ApiErrorResponse> response = handler.handleQueueException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isFalse();
+        assertThat(response.getBody().error().code()).isEqualTo("QUEUE_001");
     }
 }

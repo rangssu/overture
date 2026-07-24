@@ -2,6 +2,7 @@ package mtf.com.overture.core;
 
 import mtf.com.overture.core.security.AuthException;
 import mtf.com.overture.event.EventException;
+import mtf.com.overture.queue.QueueException;
 import mtf.com.overture.user.exception.UserException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UserException.class)
     public ResponseEntity<ApiErrorResponse> handleUserException(UserException e) {
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+                .body(ApiErrorResponse.of(e.getErrorCode().getCode(), e.getErrorCode().getMessage()));
+    }
+
+    @ExceptionHandler(QueueException.class)
+    public ResponseEntity<ApiErrorResponse> handleQueueException(QueueException e) {
         return ResponseEntity.status(e.getErrorCode().getHttpStatus())
                 .body(ApiErrorResponse.of(e.getErrorCode().getCode(), e.getErrorCode().getMessage()));
     }
