@@ -6,8 +6,10 @@ import mtf.com.overture.event.EventErrorCode;
 import mtf.com.overture.event.EventException;
 import mtf.com.overture.queue.QueueErrorCode;
 import mtf.com.overture.queue.QueueException;
-import mtf.com.overture.user.AuthController;
+import mtf.com.overture.user.controller.AuthController;
 import mtf.com.overture.user.dto.RefreshRequest;
+import mtf.com.overture.user.exception.UserErrorCode;
+import mtf.com.overture.user.exception.UserException;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
@@ -81,6 +83,28 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().error().code()).isEqualTo("EVENT_003");
+    }
+
+    @Test
+    void handleUserException_returns_the_http_status_and_code_from_the_error_code() {
+        UserException exception = new UserException(UserErrorCode.NICKNAME_DUPLICATE);
+
+        ResponseEntity<ApiErrorResponse> response = handler.handleUserException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isFalse();
+        assertThat(response.getBody().error().code()).isEqualTo("USER_001");
+    }
+
+    @Test
+    void handleUserException_maps_no_fields_to_update_to_400() {
+        UserException exception = new UserException(UserErrorCode.NO_FIELDS_TO_UPDATE);
+
+        ResponseEntity<ApiErrorResponse> response = handler.handleUserException(exception);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error().code()).isEqualTo("USER_002");
     }
 
     @Test
