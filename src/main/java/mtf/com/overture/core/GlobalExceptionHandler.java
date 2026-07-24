@@ -1,6 +1,7 @@
 package mtf.com.overture.core;
 
 import mtf.com.overture.core.security.AuthException;
+import mtf.com.overture.event.EventException;
 import mtf.com.overture.user.exception.UserException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,12 @@ public class GlobalExceptionHandler {
                 .orElse("요청 값이 유효하지 않습니다.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiErrorResponse.of("INVALID_REQUEST", message));
+    }
+
+    @ExceptionHandler(EventException.class)
+    public ResponseEntity<ApiErrorResponse> handleEventException(EventException e) {
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+                .body(ApiErrorResponse.of(e.getErrorCode().getCode(), e.getErrorCode().getMessage()));
     }
 
     @ExceptionHandler(UserException.class)
